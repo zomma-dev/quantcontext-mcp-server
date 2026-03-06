@@ -1,0 +1,61 @@
+<evaluation>
+  <!-- Q1: Error handling — invalid universe -->
+  <qa_pair>
+    <question>Use screen_stocks with universe "dow30". What error code is returned?</question>
+    <answer>INVALID_UNIVERSE</answer>
+  </qa_pair>
+
+  <!-- Q2: Error handling — invalid screen type -->
+  <qa_pair>
+    <question>Use screen_stocks with screen_type "magic_formula". What error code is returned?</question>
+    <answer>INVALID_SCREEN_TYPE</answer>
+  </qa_pair>
+
+  <!-- Q3: Basic screen — fundamental_screen returns results -->
+  <qa_pair>
+    <question>Screen sp500 stocks using fundamental_screen with pe_lt=10 and roe_gt=0.15. Does the tool return a non-empty list of results? Answer YES or NO.</question>
+    <answer>YES</answer>
+  </qa_pair>
+
+  <!-- Q4: Screen type check — value_screen -->
+  <qa_pair>
+    <question>Screen nasdaq100 stocks using value_screen with pe_lt=20 and top_n=5. What is the screen_type field in the response?</question>
+    <answer>value_screen</answer>
+  </qa_pair>
+
+  <!-- Q5: Backtest — invalid universe -->
+  <qa_pair>
+    <question>Run backtest_strategy with universe "ftse100", start_date "2024-01-01", end_date "2024-06-30". What error code is returned?</question>
+    <answer>INVALID_UNIVERSE</answer>
+  </qa_pair>
+
+  <!-- Q6: Backtest — returns metrics -->
+  <qa_pair>
+    <question>Run backtest_strategy on sp500 with fundamental_screen (pe_lt=15), start_date "2024-01-01", end_date "2024-06-30", rebalance "monthly", sizing "equal_weight". Does the response contain a "metrics" key with a "sharpe" sub-key? Answer YES or NO.</question>
+    <answer>YES</answer>
+  </qa_pair>
+
+  <!-- Q7: Factor analysis — insufficient data error handling -->
+  <qa_pair>
+    <question>Run backtest_strategy on sp500 with fundamental_screen (pe_lt=15), start_date "2024-01-01", end_date "2024-06-30". Then pass the equity_curve from the backtest result to factor_analysis. If factor_analysis returns an error about insufficient data, what is the error code? If it succeeds, does the response contain a "coefficients" key? Answer with the error code or YES/NO.</question>
+    <answer>REGRESSION_ERROR</answer>
+  </qa_pair>
+
+  <!-- Q8: Screen — count field present -->
+  <qa_pair>
+    <question>Screen russell2000 stocks using quality_screen with roe_gt=0.20 and debt_equity_lt=0.5. Does the response JSON include a "count" field? Answer YES or NO.</question>
+    <answer>YES</answer>
+  </qa_pair>
+
+  <!-- Q9: Composability — screen then backtest -->
+  <qa_pair>
+    <question>Screen sp500 with momentum_screen (lookback_days=200, top_pct=0.1), then run a backtest with those same settings from 2024-01-01 to 2024-06-30. Does the backtest response contain an "equity_curve" key? Answer YES or NO.</question>
+    <answer>YES</answer>
+  </qa_pair>
+
+  <!-- Q10: Backtest metrics structure -->
+  <qa_pair>
+    <question>Run backtest_strategy on sp500 with value_screen (pe_lt=20, top_n=10), start_date "2024-01-01", end_date "2024-06-30", rebalance "monthly", sizing "equal_weight". Does the metrics object contain both "max_drawdown" and "total_return" fields? Answer YES or NO.</question>
+    <answer>YES</answer>
+  </qa_pair>
+</evaluation>

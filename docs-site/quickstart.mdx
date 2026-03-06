@@ -1,0 +1,62 @@
+---
+title: Quickstart
+description: Add QuantContext to Claude Desktop or Claude Code in two minutes
+---
+
+## Install the package
+
+```bash
+pip install quantcontext-mcp
+```
+
+## Connect to Claude Desktop
+
+Add this to your `claude_desktop_config.json` (find it at `~/Library/Application Support/Claude/` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "quantcontext": {
+      "command": "quantcontext"
+    }
+  }
+}
+```
+
+Restart Claude Desktop. You'll see `quantcontext` appear in the tools panel.
+
+## Connect to Claude Code
+
+```bash
+claude mcp add quantcontext -- quantcontext
+```
+
+## Verify it's working
+
+Ask Claude:
+
+> "Screen S&P 500 for value stocks with PE under 15 and ROE above 12%"
+
+Claude will call `screen_stocks` and return a ranked list of candidates with actual market data. The first call downloads and caches market data (~10s). Subsequent calls use the cache (<1s for screening, 3–8s for backtesting).
+
+## Try the full workflow
+
+<Steps>
+  <Step title="Screen for candidates">
+    "Find S&P 500 stocks trading below 12x earnings with return on equity above 15%"
+  </Step>
+  <Step title="Backtest the strategy">
+    "Backtest a strategy that buys those value stocks, monthly rebalance, over the last 2 years"
+  </Step>
+  <Step title="Decompose the returns">
+    "Run factor analysis on the backtest — where is the return coming from? Is the alpha real?"
+  </Step>
+</Steps>
+
+## Cache location
+
+Data is cached at `~/.quantcontext/cache/`. Total disk usage is ~50MB for full S&P 500 coverage.
+
+<Tip>
+  The first call to any tool is slow because it downloads market data. After that, screening completes in under a second and backtesting in 3–8 seconds.
+</Tip>

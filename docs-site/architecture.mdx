@@ -1,0 +1,177 @@
+---
+title: Architecture
+description: How QuantContext works — the LLM boundary, computation pipeline, data sources, and transport
+---
+
+## The LLM Boundary
+
+QuantContext enforces a strict boundary between what LLMs do and what code does:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                       LLM Layer                          │
+│  Parses user intent ("find cheap stocks")                │
+│  Selects the right tool (screen_stocks)                  │
+│  Chooses parameters ({pe_lt: 15})                        │
+│  Explains results in natural language                    │
+│  Decides what to compute next                            │
+│                                                          │
+│  The LLM NEVER computes a number.                        │
+│  The LLM NEVER touches market data.                      │
+│  The LLM NEVER estimates a Sharpe ratio.                 │
+└──────────────────────┬──────────────────────────────────┘
+                       │  MCP Protocol (JSON-RPC over stdio)
+┌──────────────────────▼──────────────────────────────────┐
+│                  QuantContext Layer                       │
+│  Receives structured tool calls                          │
+│  Validates inputs                                        │
+│  Executes deterministic Python computation               │
+│  Returns structured JSON                                 │
+│                                                          │
+│  Every number is computed from data.                     │
+│  Same input always produces same output.                 │
+│  No LLM calls in the computation path.                   │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────┐
+│                     Data Layer                            │
+│  yfinance: daily OHLCV, fundamentals                     │
+│  Kenneth French Data Library: Fama-French factors        │
+│  Local cache: ~/.quantcontext/cache/                     │
+│  Bundled universe lists: S&P 500, Russell 2000, Nasdaq   │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Why Determinism Matters for Trading
+
+Ask an LLM to calculate a Sharpe ratio and you will get a different number every time. The number will look plausible. It will be confidently presented. It will be wrong.
+
+This is fine for creative writing. It is catastrophic for trading.
+
+QuantContext ensures every number returned to an agent is:
+
+1. **Computed from actual market data** — not generated, estimated, or hallucinated
+2. **Deterministic** — same inputs produce identical outputs, always
+3. **Auditable** — the computation path is pure Python with no randomness
+
+## How the Tools Work
+
+<AccordionGroup>
+  <Accordion title="screen_stocks">
+    ```
+    User query → LLM selects screen_type and config
+                        │
+                        ▼
+              ┌─────────────────────┐
+              │  get_universe(date) │  ← Fetches/caches tickers + fundamentals
+              └──────────┬──────────┘
+                         │
+                        ▼
+              ┌─────────────────────┐
+              │  execute_pipeline() │  ← Runs skill on pandas DataFrame
+              │  SKILL_REGISTRY[    │    Filters, ranks, scores
+              │    screen_type]     │
+              └──────────┬──────────┘
+                         │
+                        ▼
+              ┌─────────────────────┐
+              │  JSON serialization │  ← Clean records, NaN → null, top 30
+              └─────────────────────┘
+    ```
+
+    The `pipeline_executor.py` module maps pipeline stages to skill functions from `SKILL_REGISTRY`. Each skill receives a pandas DataFrame and returns a filtered/ranked DataFrame. Stages execute sequentially — stage N's output is stage N+1's input.
+  </Accordion>
+
+  <Accordion title="backtest_strategy">
+    ```
+    Pipeline spec → rebalance dates generated
+                        │
+                        ▼
+              ┌─────────────────────┐
+              │  For each rebalance │
+              │  date:              │
+              │  1. Run pipeline    │  ← Same execute_pipeline() as screening
+              │  2. Size positions  │  ← equal_weight or inverse_volatility
+              │  3. Enforce limits  │  ← max_position_size cap
+              │  4. Execute trades  │  ← Buy/sell to target weights
+              │  5. Check stop-loss │  ← Daily per-position check
+              │  6. Check drawdown  │  ← Circuit breaker
+              └──────────┬──────────┘
+                         │
+                        ▼
+              ┌─────────────────────┐
+              │  Daily P&L tracking │  ← Mark-to-market all positions
+              │  Equity curve       │
+              │  Trade log          │
+              └──────────┬──────────┘
+                         │
+                        ▼
+              ┌─────────────────────┐
+              │  Metrics            │  ← CAGR, Sharpe, max DD, Calmar,
+              │                     │    win rate, turnover
+              └─────────────────────┘
+    ```
+
+    A rebalance-loop engine. On each rebalance date it re-runs the full screening pipeline, computes target weights, and executes trades. Between rebalance dates it tracks daily P&L and enforces risk controls.
+  </Accordion>
+
+  <Accordion title="factor_analysis">
+    ```
+    Equity curve → daily returns
+                        │
+                        ▼
+              ┌─────────────────────┐
+              │  Load Fama-French   │  ← Downloads from Kenneth French Library
+              │  factors for period │    Caches locally after first download
+              └──────────┬──────────┘
+                         │
+                        ▼
+              ┌─────────────────────┐
+              │  OLS Regression     │  ← y = α + β₁·MktRF + β₂·SMB
+              │  (numpy only)       │        + β₃·HML + β₄·Mom + ε
+              └──────────┬──────────┘
+                         │
+                        ▼
+              ┌─────────────────────┐
+              │  t-stats, R²,       │  ← Manual computation from (X'X)⁻¹
+              │  residual vol       │    No statsmodels dependency
+              └─────────────────────┘
+    ```
+
+    Uses manual OLS via numpy linear algebra. Avoids a statsmodels dependency while producing identical results. The regression decomposes excess returns into four systematic factors.
+  </Accordion>
+</AccordionGroup>
+
+## Data Sources and Caching
+
+| Source | Data | Cache TTL | Location |
+|--------|------|-----------|----------|
+| yfinance | Daily OHLCV prices | 1 day | `~/.quantcontext/cache/prices/` |
+| yfinance | Fundamentals (PE, ROE, etc.) | 7 days | `~/.quantcontext/cache/fundamentals/` |
+| Kenneth French | Fama-French + momentum factors | 30 days | `~/.quantcontext/cache/factors/` |
+| Bundled | Universe constituent lists | Package version | Installed with package |
+
+**First call:** Downloads market data (~10s for S&P 500). Subsequent calls use the cache.
+
+**Performance:** Screening <1s, backtesting 3–8s.
+
+**Total disk usage:** ~50MB for full S&P 500 coverage.
+
+## Transport
+
+QuantContext uses the MCP stdio transport. The server reads JSON-RPC messages from stdin and writes responses to stdout.
+
+```bash
+# Started automatically by the MCP client — you never run this manually
+quantcontext
+```
+
+For development and testing, you can call the tools directly in Python:
+
+```python
+from quantcontext.server import screen_stocks, backtest_strategy, factor_analysis
+import asyncio, json
+
+result = asyncio.run(screen_stocks(universe="sp500", screen_type="value_screen"))
+print(json.loads(result))
+```

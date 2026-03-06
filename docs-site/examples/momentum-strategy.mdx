@@ -1,0 +1,105 @@
+---
+title: Momentum Strategy + Factor Decomposition
+description: Two-tool example — backtest a Nasdaq 100 momentum strategy and decompose the returns
+---
+
+This example uses `backtest_strategy` followed by `factor_analysis`. It's the most common two-step workflow: test a strategy, then understand where the returns came from.
+
+## User prompt
+
+> "I want to test a strategy that buys the top 20% momentum stocks in the Nasdaq 100, rebalanced monthly. How would it have done over the last 2 years?"
+
+## Step 1 — Backtest
+
+```json
+{
+  "stages": [
+    {
+      "order": 1,
+      "type": "screen",
+      "skill": "momentum_screen",
+      "config": { "lookback_days": 200, "top_pct": 0.2 }
+    }
+  ],
+  "universe": "nasdaq100",
+  "rebalance": "monthly",
+  "sizing": "equal_weight",
+  "start_date": "2023-03-01",
+  "end_date": "2025-03-01"
+}
+```
+
+**Response:**
+
+```json
+{
+  "metrics": {
+    "total_return": 0.4812,
+    "cagr": 0.2187,
+    "sharpe": 1.56,
+    "max_drawdown": -0.1234,
+    "calmar": 1.77,
+    "win_rate": 0.5523,
+    "turnover": 3.82,
+    "total_trades": 412
+  },
+  "equity_curve_points": 504,
+  "full_equity_curve": ["...504 points, pass to factor_analysis..."]
+}
+```
+
+**Agent summary:**
+
+- **Total return:** +48.1% over 2 years (21.9% CAGR)
+- **Sharpe ratio:** 1.56 — strong risk-adjusted returns
+- **Max drawdown:** -12.3% — manageable
+- **Calmar ratio:** 1.77 — good return per unit of peak-to-trough risk
+- **Turnover:** 3.82x/year — fairly active at 412 trades (expected for momentum)
+
+## Step 2 — Factor decomposition
+
+The user follows up: *"Where is the return coming from?"*
+
+```json
+{
+  "equity_curve": ["...full_equity_curve from backtest..."]
+}
+```
+
+**Response:**
+
+```json
+{
+  "alpha_daily": 0.000312,
+  "alpha_annualized": 0.0821,
+  "alpha_tstat": 2.34,
+  "factors": {
+    "Mkt-RF": { "loading": 1.1234, "tstat": 18.92 },
+    "SMB":    { "loading": -0.3456, "tstat": -4.12 },
+    "HML":    { "loading": -0.2891, "tstat": -3.45 },
+    "Mom":    { "loading": 0.4523,  "tstat": 6.78 }
+  },
+  "r_squared": 0.8234,
+  "residual_vol": 0.0912,
+  "interpretation": {
+    "alpha": "Alpha is statistically significant (t-stat=2.34)",
+    "factors": "Dominant factor: Mkt-RF (loading=1.1234)"
+  }
+}
+```
+
+**Agent interpretation:**
+
+**Alpha is statistically significant** — 8.2% annualized, t-stat 2.34. There is genuine edge beyond factor exposure.
+
+**Factor breakdown:**
+- **Market (1.12)** — Slightly higher beta than the market. Amplifies both gains and losses.
+- **Size (-0.35)** — Large-cap tilt, expected for Nasdaq 100.
+- **Value (-0.29)** — Anti-value tilt, expected for a momentum strategy that favors expensive growth stocks.
+- **Momentum (0.45)** — Significant momentum loading, as expected. But the stock selection within the momentum bucket is adding extra value beyond the factor alone.
+
+**R-squared: 0.82** — 82% of variance explained by factors. The remaining 18% is idiosyncratic.
+
+<Warning>
+  The 1.12 market beta means this strategy will significantly underperform in a bear market. The strong backtest period (2023–2025) was largely bullish — consider stress-testing on 2022 data.
+</Warning>

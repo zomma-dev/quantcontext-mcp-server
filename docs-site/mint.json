@@ -1,0 +1,65 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "QuantContext",
+  "logo": {
+    "dark": "/logo.svg",
+    "light": "/logo.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#00c48c",
+    "light": "#00e8a8",
+    "dark": "#00a070"
+  },
+  "topbarCtaButton": {
+    "name": "pip install quantcontext-mcp",
+    "url": "https://pypi.org/project/quantcontext-mcp/"
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/zomma-ai/quantcontext-mcp-server"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": ["introduction", "quickstart"]
+    },
+    {
+      "group": "Tools",
+      "pages": [
+        "tools/screen-stocks",
+        "tools/backtest-strategy",
+        "tools/factor-analysis"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/value-stocks",
+        "examples/momentum-strategy",
+        "examples/full-workflow"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": ["architecture"]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/zomma-ai/quantcontext-mcp-server"
+  },
+  "anchors": [
+    {
+      "name": "PyPI",
+      "icon": "python",
+      "url": "https://pypi.org/project/quantcontext-mcp/"
+    },
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/zomma-ai/quantcontext-mcp-server"
+    }
+  ]
+}

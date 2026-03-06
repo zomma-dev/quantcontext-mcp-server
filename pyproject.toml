@@ -1,0 +1,42 @@
+[project]
+name = "quantcontext-mcp"
+version = "0.1.0"
+description = "MCP server for trade research and strategy backtesting. Deterministic quant tools for AI agents — stock screening, backtesting, and factor analysis."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Zomma", email = "hello@zomma.ai" },
+]
+keywords = ["mcp", "trading", "quant", "backtest", "factor-analysis", "ai-agent", "finance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "mcp>=1.7",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "yfinance>=0.2",
+    "scipy>=1.10",
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+quantcontext = "quantcontext.server:main"
+
+[project.urls]
+Homepage = "https://quantcontext.dev"
+Repository = "https://github.com/zomma-ai/quantcontext-mcp-server"
+Documentation = "https://quantcontext.dev/docs"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quantcontext"]

@@ -1,0 +1,139 @@
+---
+title: screen_stocks
+description: Screen a stock universe by quantitative criteria and return ranked candidates
+---
+
+**When to use:** The user wants to find stocks matching specific criteria — value stocks, momentum leaders, quality companies, or multi-factor ranked candidates. Any query about "find stocks", "screen for", "filter by", "which stocks have", or "rank stocks by" should use this tool.
+
+**What it returns:** A ranked list of stock tickers with scores and fundamental/technical metrics. Results are capped at 30 stocks. If no stocks pass the filter, returns an empty list with a suggestion to relax criteria.
+
+## Parameters
+
+<ParamField query="universe" type="string" default="sp500">
+  Stock universe to screen. Options: `sp500`, `russell2000`, `nasdaq100`
+</ParamField>
+
+<ParamField query="screen_type" type="string" default="fundamental_screen">
+  Screening method. See [Screen Types](#screen-types) below.
+</ParamField>
+
+<ParamField query="config" type="object | null" default="null">
+  Screen-specific parameters. All fields optional — sensible defaults are used if omitted.
+</ParamField>
+
+<ParamField query="date" type="string | null" default="null">
+  Screen date in `YYYY-MM-DD` format. Defaults to the most recent trading day.
+</ParamField>
+
+## Screen Types
+
+<AccordionGroup>
+  <Accordion title="fundamental_screen — Filter by fundamental metrics">
+    ```json
+    {
+      "pe_lt": 15,
+      "roe_gt": 12,
+      "debt_equity_lt": 1.0,
+      "revenue_growth_gt": 0.05
+    }
+    ```
+    All config fields are optional. Omit any you don't want to filter by.
+  </Accordion>
+
+  <Accordion title="quality_screen — High-quality companies">
+    ```json
+    {
+      "roe_gt": 15,
+      "debt_equity_lt": 0.5,
+      "profit_margin_gt": 0.1
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="momentum_screen — Rank by price momentum">
+    ```json
+    {
+      "lookback_days": 200,
+      "top_pct": 0.2
+    }
+    ```
+    Returns the top `top_pct` fraction of stocks by momentum score over the lookback window.
+  </Accordion>
+
+  <Accordion title="value_screen — Cheapest by valuation">
+    ```json
+    {
+      "pe_lt": 20,
+      "top_n": 30
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="factor_model — Multi-factor composite score">
+    ```json
+    {
+      "weights": {
+        "value": 0.3,
+        "momentum": 0.3,
+        "quality": 0.2,
+        "volatility": 0.2
+      },
+      "top_n": 20
+    }
+    ```
+    Scores each stock across factors and returns the top `top_n` by composite score.
+  </Accordion>
+
+  <Accordion title="technical_signal — RSI and SMA signals">
+    ```json
+    {
+      "rsi_period": 14,
+      "sma_short": 50,
+      "sma_long": 200
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="mean_reversion — Stocks below z-score threshold">
+    ```json
+    {
+      "lookback_days": 60,
+      "z_threshold": -1.5
+    }
+    ```
+    Returns stocks whose recent price is more than `z_threshold` standard deviations below the lookback mean.
+  </Accordion>
+</AccordionGroup>
+
+## Example Response
+
+```json
+{
+  "screen_type": "fundamental_screen",
+  "universe": "sp500",
+  "date": "2024-12-31",
+  "config": { "pe_lt": 15, "roe_gt": 12 },
+  "universe_size": 503,
+  "count": 23,
+  "showing": 23,
+  "results": [
+    { "ticker": "VTRS", "pe_ratio": 7.2, "roe": 0.18, "debt_to_equity": 0.95 },
+    { "ticker": "MOS", "pe_ratio": 8.1, "roe": 0.22, "debt_to_equity": 0.41 },
+    { "ticker": "BG", "pe_ratio": 9.4, "roe": 0.16, "debt_to_equity": 0.73 }
+  ]
+}
+```
+
+## What to do next
+
+<CardGroup cols={3}>
+  <Card title="Backtest the screen" icon="chart-line" href="/tools/backtest-strategy">
+    Pass the same `screen_type` and `config` to `backtest_strategy` as a pipeline stage to test the strategy historically.
+  </Card>
+  <Card title="Compare universes" icon="arrows-left-right">
+    Run the same screen on `sp500`, `russell2000`, and `nasdaq100` to see where opportunities concentrate.
+  </Card>
+  <Card title="Refine criteria" icon="sliders">
+    If too many results, tighten the config. If too few, relax it.
+  </Card>
+</CardGroup>

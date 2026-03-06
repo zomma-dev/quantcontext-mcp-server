@@ -1,0 +1,131 @@
+---
+title: Full Strategy Research
+description: Three-tool example — screen, backtest, and factor-analyze a value-momentum strategy end to end
+---
+
+This is the canonical QuantContext workflow: all three tools in sequence.
+
+## User prompt
+
+> "I want to build a value-momentum strategy. Screen for cheap stocks, rank by momentum, backtest it, and tell me if the alpha is real."
+
+---
+
+## Step 1 — Preview the universe
+
+Before backtesting, screen to see how many stocks pass the value filter today.
+
+```json
+{
+  "universe": "sp500",
+  "screen_type": "fundamental_screen",
+  "config": { "pe_lt": 15, "roe_gt": 10 }
+}
+```
+
+**Response:** 28 stocks pass. Enough to build a diversified portfolio.
+
+---
+
+## Step 2 — Backtest the two-stage pipeline
+
+Screen for value stocks (stage 1), then rank survivors by 200-day momentum and keep the top 30% (stage 2).
+
+```json
+{
+  "stages": [
+    {
+      "order": 1,
+      "type": "screen",
+      "skill": "fundamental_screen",
+      "config": { "pe_lt": 15, "roe_gt": 10 }
+    },
+    {
+      "order": 2,
+      "type": "signal",
+      "skill": "momentum_screen",
+      "config": { "lookback_days": 200, "top_pct": 0.3 }
+    }
+  ],
+  "universe": "sp500",
+  "rebalance": "monthly",
+  "sizing": "equal_weight",
+  "start_date": "2022-01-01",
+  "end_date": "2025-01-01",
+  "max_position_size": 0.15,
+  "stop_loss": 0.15
+}
+```
+
+**Response:**
+
+```json
+{
+  "metrics": {
+    "total_return": 0.4123,
+    "cagr": 0.1216,
+    "sharpe": 1.31,
+    "max_drawdown": -0.1567,
+    "calmar": 0.78,
+    "win_rate": 0.5234,
+    "turnover": 2.12,
+    "total_trades": 256
+  }
+}
+```
+
+3-year performance: +41.2% total, 12.2% CAGR, Sharpe 1.31. Max drawdown held at -15.7% — the 15% stop-loss contributed. The strategy held 8–10 positions on average with 2x annual turnover.
+
+---
+
+## Step 3 — Factor analysis
+
+```json
+{
+  "equity_curve": ["...full_equity_curve from backtest..."]
+}
+```
+
+**Response:**
+
+```json
+{
+  "alpha_annualized": 0.0534,
+  "alpha_tstat": 1.92,
+  "factors": {
+    "Mkt-RF": { "loading": 0.7812, "tstat": 14.23 },
+    "SMB":    { "loading": 0.1234, "tstat": 1.89 },
+    "HML":    { "loading": 0.5678, "tstat": 7.34 },
+    "Mom":    { "loading": 0.2345, "tstat": 3.45 }
+  },
+  "r_squared": 0.7456
+}
+```
+
+---
+
+## Reading the results
+
+**Is the alpha real?** Probably, but not conclusively.
+
+- Alpha is 5.3% annualized with t-stat 1.92 — close to the significance threshold of 2.0 but just below it. With a longer backtest (5+ years), it might cross.
+- **Strong value loading (HML 0.57)** — highly significant at t=7.34. The strategy is heavily tilted to the value factor. That's the intended bet.
+- **Moderate momentum loading (0.23)** — significant at t=3.45. The momentum ranking in stage 2 is contributing.
+- **Market beta 0.78** — defensive. This helped during the 2022 rate-hiking drawdown, which is why 3-year performance is solid despite 2022 headwinds.
+- **R-squared 0.75** — 75% of variance explained by the four factors.
+
+**Bottom line:** The strategy works, but most of the return comes from the **value factor premium**, not stock-selection alpha. You could replicate ~75% of the return with VLUE + MTUM ETFs. That's not necessarily bad — the value premium is real and persistent — but it's useful to know what you're actually paying for.
+
+## Ways to increase the alpha component
+
+<CardGroup cols={3}>
+  <Card title="Tighter value screen" icon="filter">
+    Use `pe_lt: 10` instead of `pe_lt: 15` to target deeper value, which may have more idiosyncratic premium.
+  </Card>
+  <Card title="Add quality filter" icon="shield-check">
+    Add `roe_gt: 15` and `debt_equity_lt: 0.5` before the momentum rank to avoid value traps.
+  </Card>
+  <Card title="Longer backtest" icon="calendar">
+    Extend to 5+ years for more data points and higher statistical power on the alpha t-stat.
+  </Card>
+</CardGroup>
