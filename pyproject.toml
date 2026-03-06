@@ -30,8 +30,8 @@ dependencies = [
 quantcontext = "quantcontext.server:main"
 
 [project.urls]
-Homepage = "https://quantcontext.dev"
-Repository = "https://github.com/zomma-ai/quantcontext-mcp-server"
+Homepage = "https://quantcontext.ai"
+Repository = "https://github.com/jihjihk/quantcontext-mcp-server"
 Documentation = "https://quantcontext.dev/docs"
 
 [build-system]

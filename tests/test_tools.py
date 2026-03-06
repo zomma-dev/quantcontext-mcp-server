@@ -5,13 +5,6 @@ to verify they return valid JSON with expected structure.
 """
 import json
 import sys
-import os
-
-# Ensure engine is importable
-ENGINE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "engine")
-ENGINE_DIR = os.path.abspath(ENGINE_DIR)
-if ENGINE_DIR not in sys.path:
-    sys.path.insert(0, ENGINE_DIR)
 
 
 def test_screen_stocks_basic():

@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: How QuantContext works — the LLM boundary, computation pipeline, data sources, and transport
+description: How QuantContext works:the LLM boundary, computation pipeline, data sources, and transport
 ---
 
 ## The LLM Boundary
@@ -50,9 +50,9 @@ This is fine for creative writing. It is catastrophic for trading.
 
 QuantContext ensures every number returned to an agent is:
 
-1. **Computed from actual market data** — not generated, estimated, or hallucinated
-2. **Deterministic** — same inputs produce identical outputs, always
-3. **Auditable** — the computation path is pure Python with no randomness
+1. **Computed from actual market data**:not generated, estimated, or hallucinated
+2. **Deterministic**:same inputs produce identical outputs, always
+3. **Auditable**:the computation path is pure Python with no randomness
 
 ## How the Tools Work
 
@@ -79,7 +79,7 @@ QuantContext ensures every number returned to an agent is:
               └─────────────────────┘
     ```
 
-    The `pipeline_executor.py` module maps pipeline stages to skill functions from `SKILL_REGISTRY`. Each skill receives a pandas DataFrame and returns a filtered/ranked DataFrame. Stages execute sequentially — stage N's output is stage N+1's input.
+    The `pipeline_executor.py` module maps pipeline stages to skill functions from `SKILL_REGISTRY`. Each skill receives a pandas DataFrame and returns a filtered/ranked DataFrame. Stages execute sequentially:stage N's output is stage N+1's input.
   </Accordion>
 
   <Accordion title="backtest_strategy">
@@ -162,7 +162,7 @@ QuantContext ensures every number returned to an agent is:
 QuantContext uses the MCP stdio transport. The server reads JSON-RPC messages from stdin and writes responses to stdout.
 
 ```bash
-# Started automatically by the MCP client — you never run this manually
+# Started automatically by the MCP client:you never run this manually
 quantcontext
 ```
 

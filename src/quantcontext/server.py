@@ -7,24 +7,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-import sys
 from typing import Annotated
 
 from pydantic import Field
 from mcp.server.fastmcp import FastMCP, Context
 
 # ── Engine imports ──
-# Add the engine directory to sys.path so we can import engine modules.
-_ENGINE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "engine")
-_ENGINE_DIR = os.path.abspath(_ENGINE_DIR)
-if _ENGINE_DIR not in sys.path:
-    sys.path.insert(0, _ENGINE_DIR)
-
-from pipeline_executor import execute_pipeline  # noqa: E402
-from backtest_engine import run_backtest  # noqa: E402
-from factor_analysis import run_factor_regression  # noqa: E402
-from skills.pipeline_skills.registry import SKILL_REGISTRY  # noqa: E402
+from quantcontext.engine.pipeline_executor import execute_pipeline
+from quantcontext.engine.backtest_engine import run_backtest
+from quantcontext.engine.factor_analysis import run_factor_regression
+from quantcontext.engine.skills.pipeline_skills.registry import SKILL_REGISTRY
 
 # ── Server ──
 

@@ -3,7 +3,7 @@ title: screen_stocks
 description: Screen a stock universe by quantitative criteria and return ranked candidates
 ---
 
-**When to use:** The user wants to find stocks matching specific criteria — value stocks, momentum leaders, quality companies, or multi-factor ranked candidates. Any query about "find stocks", "screen for", "filter by", "which stocks have", or "rank stocks by" should use this tool.
+**When to use:** The user wants to find stocks matching specific criteria:value stocks, momentum leaders, quality companies, or multi-factor ranked candidates. Any query about "find stocks", "screen for", "filter by", "which stocks have", or "rank stocks by" should use this tool.
 
 **What it returns:** A ranked list of stock tickers with scores and fundamental/technical metrics. Results are capped at 30 stocks. If no stocks pass the filter, returns an empty list with a suggestion to relax criteria.
 
@@ -18,7 +18,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
 </ParamField>
 
 <ParamField query="config" type="object | null" default="null">
-  Screen-specific parameters. All fields optional — sensible defaults are used if omitted.
+  Screen-specific parameters. All fields optional:sensible defaults are used if omitted.
 </ParamField>
 
 <ParamField query="date" type="string | null" default="null">
@@ -28,7 +28,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
 ## Screen Types
 
 <AccordionGroup>
-  <Accordion title="fundamental_screen — Filter by fundamental metrics">
+  <Accordion title="fundamental_screen:Filter by fundamental metrics">
     ```json
     {
       "pe_lt": 15,
@@ -40,7 +40,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
     All config fields are optional. Omit any you don't want to filter by.
   </Accordion>
 
-  <Accordion title="quality_screen — High-quality companies">
+  <Accordion title="quality_screen:High-quality companies">
     ```json
     {
       "roe_gt": 15,
@@ -50,7 +50,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
     ```
   </Accordion>
 
-  <Accordion title="momentum_screen — Rank by price momentum">
+  <Accordion title="momentum_screen:Rank by price momentum">
     ```json
     {
       "lookback_days": 200,
@@ -60,7 +60,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
     Returns the top `top_pct` fraction of stocks by momentum score over the lookback window.
   </Accordion>
 
-  <Accordion title="value_screen — Cheapest by valuation">
+  <Accordion title="value_screen:Cheapest by valuation">
     ```json
     {
       "pe_lt": 20,
@@ -69,7 +69,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
     ```
   </Accordion>
 
-  <Accordion title="factor_model — Multi-factor composite score">
+  <Accordion title="factor_model:Multi-factor composite score">
     ```json
     {
       "weights": {
@@ -84,7 +84,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
     Scores each stock across factors and returns the top `top_n` by composite score.
   </Accordion>
 
-  <Accordion title="technical_signal — RSI and SMA signals">
+  <Accordion title="technical_signal:RSI and SMA signals">
     ```json
     {
       "rsi_period": 14,
@@ -94,7 +94,7 @@ description: Screen a stock universe by quantitative criteria and return ranked 
     ```
   </Accordion>
 
-  <Accordion title="mean_reversion — Stocks below z-score threshold">
+  <Accordion title="mean_reversion:Stocks below z-score threshold">
     ```json
     {
       "lookback_days": 60,

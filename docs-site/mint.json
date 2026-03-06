@@ -7,13 +7,28 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#00c48c",
-    "light": "#00e8a8",
-    "dark": "#00a070"
+    "primary": "#2563eb",
+    "light": "#3b82f6",
+    "dark": "#1d4ed8",
+    "background": {
+      "light": "#fafafa",
+      "dark": "#0f172a"
+    }
   },
+  "theme": "venus",
+  "font": {
+    "headings": {
+      "family": "Instrument Serif"
+    },
+    "body": {
+      "family": "Inter",
+      "weight": 400
+    }
+  },
+  "css": "/custom.css",
   "topbarCtaButton": {
-    "name": "pip install quantcontext-mcp",
-    "url": "https://pypi.org/project/quantcontext-mcp/"
+    "name": "Get started",
+    "url": "https://quantcontext.ai#install"
   },
   "topbarLinks": [
     {
@@ -48,7 +63,8 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/zomma-ai/quantcontext-mcp-server"
+    "github": "https://github.com/zomma-ai/quantcontext-mcp-server",
+    "x": "https://twitter.com/zommaai"
   },
   "anchors": [
     {
@@ -61,5 +77,11 @@
       "icon": "github",
       "url": "https://github.com/zomma-ai/quantcontext-mcp-server"
     }
-  ]
+  ],
+  "feedback": {
+    "thumbsRating": true
+  },
+  "search": {
+    "prompt": "Search QuantContext docs..."
+  }
 }
