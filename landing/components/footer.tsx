@@ -1,4 +1,4 @@
-const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "https://docs.quantcontext.ai";
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "/docs";
 
 export function Footer() {
   return (

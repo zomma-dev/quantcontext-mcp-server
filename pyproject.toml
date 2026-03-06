@@ -32,7 +32,7 @@ quantcontext = "quantcontext.server:main"
 [project.urls]
 Homepage = "https://quantcontext.ai"
 Repository = "https://github.com/jihjihk/quantcontext-mcp-server"
-Documentation = "https://docs.quantcontext.ai"
+Documentation = "https://quantcontext.ai/docs"
 
 [build-system]
 requires = ["hatchling"]

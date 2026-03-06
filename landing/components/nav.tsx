@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "https://docs.quantcontext.ai";
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "/docs";
 
 const LINKS = [
   { label: "Tools", href: "#tools" },
