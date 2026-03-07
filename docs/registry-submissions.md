@@ -8,7 +8,7 @@ Submit all on launch day. Use these exact descriptions for consistency.
 - **Description:** Deterministic quant tools (stock screening, backtesting, factor analysis) for AI trading agents. Every number computed, not generated.
 - **Category:** Finance
 - **GitHub:** https://github.com/zomma-dev/quantcontext-mcp-server
-- **Install:** `pip install quantcontext-mcp`
+- **Install:** `claude mcp add quantcontext -- quantcontext` (or `pip install quantcontext-mcp`)
 - **Transport:** stdio
 
 ## PulseMCP (pulsemcp.com)
