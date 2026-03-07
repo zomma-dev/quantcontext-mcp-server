@@ -118,8 +118,10 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
     if not all_tickers:
         return {"equity_curve": [], "trades": [], "metrics": {}, "holdings_over_time": [], "stage_results_by_date": {}}
 
-    # Fetch all prices at once
+    # Fetch all prices at once; forward-fill gaps (handles delistings, data holes)
+    # Without ffill, NaN prices cause positions to silently drop to $0 mid-backtest
     prices = fetch_prices(all_tickers, start, end)
+    prices = prices.ffill()
 
     # Trading dates = all business days where we have price data
     trading_dates = prices.index.sort_values()

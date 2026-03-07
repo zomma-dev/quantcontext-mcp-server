@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from urllib.request import urlopen
@@ -9,8 +10,9 @@ from urllib.request import urlopen
 import pandas as pd
 import yfinance as yf
 
-CACHE_DIR = Path(__file__).parent / ".cache"
-CACHE_DIR.mkdir(exist_ok=True)
+# ── Cache location: user home directory, never bundled with the package ──
+CACHE_DIR = Path.home() / ".cache" / "quantcontext"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 FINANCIALS_DIR = CACHE_DIR / "financials"
 FINANCIALS_DIR.mkdir(exist_ok=True)
 
@@ -20,6 +22,23 @@ FACTORS_CACHE_PATH = CACHE_DIR / "ff_factors.parquet"
 FACTORS_CSV_FALLBACK = CACHE_DIR / "ff_factors.csv"
 SP500_CACHE_PATH = CACHE_DIR / "sp500_tickers.json"
 REMOTE_CACHE_BASE_URL = os.getenv("MARKET_DATA_BASE_URL", "").rstrip("/")
+
+# ── Per-request warning accumulator (thread-local so concurrent calls don't mix) ──
+_thread_local = threading.local()
+
+
+def _warn(msg: str) -> None:
+    """Append a data-quality warning to the current thread's warning list."""
+    if not hasattr(_thread_local, "warnings"):
+        _thread_local.warnings = []
+    _thread_local.warnings.append(msg)
+
+
+def get_and_clear_warnings() -> list[str]:
+    """Return accumulated warnings for this thread and reset the list."""
+    warnings = getattr(_thread_local, "warnings", [])
+    _thread_local.warnings = []
+    return warnings
 
 FALLBACK_SP500_TICKERS = [
     "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "BRK-B", "LLY", "AVGO", "TSLA",
@@ -138,8 +157,26 @@ def _download_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
     return prices
 
 
+def _cache_covers_range(cached: pd.DataFrame, tickers: list[str], start: str, end: str) -> bool:
+    """Return True only if cached data covers the full requested date range for all tickers."""
+    end_ts = pd.Timestamp(end)
+    stale_threshold = end_ts - pd.Timedelta(days=5)
+    try:
+        raw_max = cached.index.max()
+        if pd.isna(raw_max):
+            return False
+        if str(raw_max)[:10] < stale_threshold.strftime("%Y-%m-%d"):
+            return False
+    except Exception:
+        return False
+    slice_ = _filter_prices(cached, tickers, start, end)
+    if not all(t in slice_.columns for t in tickers):
+        return False
+    return all(not slice_[t].dropna().empty for t in tickers)
+
+
 def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
-    """Fetch daily close prices using shared cache file at engine/.cache/prices.parquet."""
+    """Fetch daily close prices. Cache lives in ~/.cache/quantcontext/."""
     unique_tickers = sorted(set(tickers))
 
     if not PRICES_CACHE_PATH.exists() and not PRICES_CSV_FALLBACK_PATH.exists():
@@ -148,12 +185,14 @@ def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
             _try_download_remote_cache("prices.csv", PRICES_CSV_FALLBACK_PATH)
 
     cached = _read_cached_prices()
-    if cached is not None:
-        cached_slice = _filter_prices(cached, unique_tickers, start, end)
-        has_all = all(t in cached_slice.columns for t in unique_tickers)
-        has_values = has_all and all(not cached_slice[t].dropna().empty for t in unique_tickers)
-        if has_values and not cached_slice.empty:
-            return cached_slice
+    if cached is not None and _cache_covers_range(cached, unique_tickers, start, end):
+        return _filter_prices(cached, unique_tickers, start, end)
+
+    if cached is not None and not _cache_covers_range(cached, unique_tickers, start, end):
+        _warn(
+            f"Price cache is stale or incomplete; downloading fresh data "
+            f"from yfinance for {start} → {end}. This may take a few seconds."
+        )
 
     try:
         live = _download_prices(unique_tickers, start, end)
@@ -161,12 +200,14 @@ def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
         if cached is not None:
             fallback = _filter_prices(cached, unique_tickers, start, end)
             if not fallback.empty:
+                _warn(
+                    f"Live price download failed ({exc}); using stale cached data. "
+                    "Results may not reflect recent market moves."
+                )
                 return fallback
-        raise RuntimeError(f"Failed to fetch prices: {exc}") from exc
+        raise RuntimeError(f"Failed to fetch prices and no usable cache available: {exc}") from exc
 
-    merged = live
-    if cached is not None:
-        merged = live.combine_first(cached)
+    merged = live.combine_first(cached) if cached is not None else live
     merged = _normalize_index(merged)
     _write_cached_prices(merged)
 
@@ -177,46 +218,79 @@ def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
 
 
 def fetch_sp500_tickers() -> list[str]:
-    """Return current S&P 500 tickers. Cache result."""
+    """Return current S&P 500 tickers. Cache only real scraped data, never the fallback."""
     if not SP500_CACHE_PATH.exists():
         _try_download_remote_cache("sp500_tickers.json", SP500_CACHE_PATH)
 
     if SP500_CACHE_PATH.exists():
         with open(SP500_CACHE_PATH) as f:
-            return json.load(f)
+            tickers = json.load(f)
+        if len(tickers) >= 400:  # sanity check: real S&P 500 has 500+ constituents
+            return tickers
+        # Cached list is too small (e.g. a stale fallback was cached) — delete and re-fetch
+        SP500_CACHE_PATH.unlink(missing_ok=True)
 
     try:
-        table = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
+        import io as _io
+        req = urlopen(
+            __import__("urllib.request", fromlist=["Request"]).Request(
+                "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+                headers={"User-Agent": "Mozilla/5.0 (compatible; quantcontext-mcp/0.1; +https://github.com/jihjihk/quantcontext-mcp-server)"},
+            ),
+            timeout=15,
+        )
+        html = req.read().decode("utf-8")
+        table = pd.read_html(_io.StringIO(html))[0]
         tickers = table["Symbol"].str.replace(".", "-", regex=False).tolist()
-    except Exception:
-        tickers = FALLBACK_SP500_TICKERS
-
-    with open(SP500_CACHE_PATH, "w") as f:
-        json.dump(tickers, f)
-    return tickers
+        with open(SP500_CACHE_PATH, "w") as f:
+            json.dump(tickers, f)
+        return tickers
+    except Exception as exc:
+        _warn(
+            f"Could not fetch S&P 500 constituents from Wikipedia ({exc}). "
+            f"Using {len(FALLBACK_SP500_TICKERS)}-stock fallback — universe is incomplete. "
+            "Results will NOT represent the full S&P 500."
+        )
+        return FALLBACK_SP500_TICKERS
 
 
 NASDAQ100_CACHE_PATH = CACHE_DIR / "nasdaq100_tickers.json"
 
 
 def fetch_nasdaq100_tickers() -> list[str]:
-    """Return current Nasdaq-100 tickers. Cache result."""
+    """Return current Nasdaq-100 tickers. Cache only real scraped data, never the fallback."""
     if not NASDAQ100_CACHE_PATH.exists():
         _try_download_remote_cache("nasdaq100_tickers.json", NASDAQ100_CACHE_PATH)
 
     if NASDAQ100_CACHE_PATH.exists():
         with open(NASDAQ100_CACHE_PATH) as f:
-            return json.load(f)
+            tickers = json.load(f)
+        if len(tickers) >= 90:  # sanity check: real Nasdaq-100 has ~100 constituents
+            return tickers
+        NASDAQ100_CACHE_PATH.unlink(missing_ok=True)
 
     try:
-        table = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")[4]
+        import io as _io
+        req = urlopen(
+            __import__("urllib.request", fromlist=["Request"]).Request(
+                "https://en.wikipedia.org/wiki/Nasdaq-100",
+                headers={"User-Agent": "Mozilla/5.0 (compatible; quantcontext-mcp/0.1; +https://github.com/jihjihk/quantcontext-mcp-server)"},
+            ),
+            timeout=15,
+        )
+        html = req.read().decode("utf-8")
+        table = pd.read_html(_io.StringIO(html))[4]
         tickers = table["Ticker"].str.replace(".", "-", regex=False).tolist()
-    except Exception:
-        tickers = FALLBACK_NASDAQ100_TICKERS
-
-    with open(NASDAQ100_CACHE_PATH, "w") as f:
-        json.dump(tickers, f)
-    return tickers
+        with open(NASDAQ100_CACHE_PATH, "w") as f:
+            json.dump(tickers, f)
+        return tickers
+    except Exception as exc:
+        _warn(
+            f"Could not fetch Nasdaq-100 constituents from Wikipedia ({exc}). "
+            f"Using {len(FALLBACK_NASDAQ100_TICKERS)}-stock fallback — universe is incomplete. "
+            "Results will NOT represent the full Nasdaq-100."
+        )
+        return FALLBACK_NASDAQ100_TICKERS
 
 
 def fetch_russell2000_tickers() -> list[str]:
@@ -356,11 +430,12 @@ def enrich_with_price_data(df: pd.DataFrame, date: str) -> pd.DataFrame:
     return df
 
 
-def get_universe(date: str, universe: str = "sp500") -> pd.DataFrame:
-    """Return a DataFrame of all tickers in the universe with fundamentals.
+def get_universe(date: str, universe: str = "sp500", fundamentals: bool = True) -> pd.DataFrame:
+    """Return a DataFrame of all tickers in the universe.
 
-    Columns: ticker, pe_ratio, forward_pe, roe, debt_to_equity,
-             revenue_growth, market_cap, sector, name
+    When fundamentals=True (default): fetches PE, ROE, D/E, etc. from yfinance per ticker.
+    When fundamentals=False: skips individual API calls; returns tickers enriched with
+    price-derived columns only (momentum, volatility, RSI, etc.). Much faster on cold cache.
     """
     if universe == "sp500":
         tickers = fetch_sp500_tickers()
@@ -370,6 +445,12 @@ def get_universe(date: str, universe: str = "sp500") -> pd.DataFrame:
         tickers = fetch_russell2000_tickers()
     else:
         tickers = FALLBACK_SP500_TICKERS[:90]
+
+    if not fundamentals:
+        # Price-only path: one batch yfinance download, no per-ticker API calls
+        df = pd.DataFrame({"ticker": tickers})
+        df = enrich_with_price_data(df, date)
+        return df
 
     rows = []
     for ticker in tickers:
@@ -382,6 +463,65 @@ def get_universe(date: str, universe: str = "sp500") -> pd.DataFrame:
     df = pd.DataFrame(rows)
     df = enrich_with_price_data(df, date)
     return df
+
+
+def warmup_cache(base_url: str | None = None) -> None:
+    """Download seed cache files from a hosted URL.
+
+    Run once after install (via `quantcontext-warmup`) to avoid cold-cache
+    rate limiting on first use. Files are downloaded to ~/.cache/quantcontext/.
+
+    Args:
+        base_url: Override MARKET_DATA_BASE_URL env var.
+    """
+    url = (base_url or REMOTE_CACHE_BASE_URL).rstrip("/")
+    if not url:
+        print(
+            "No seed cache URL configured.\n"
+            "Set MARKET_DATA_BASE_URL to your hosted cache URL and re-run, or\n"
+            "let QuantContext build the cache automatically on first use."
+        )
+        return
+
+    print(f"QuantContext cache warmup — downloading from {url}")
+    print(f"Cache directory: {CACHE_DIR}\n")
+
+    seed_files = [
+        ("sp500_tickers.json", SP500_CACHE_PATH),
+        ("nasdaq100_tickers.json", NASDAQ100_CACHE_PATH),
+        ("ff_factors.parquet", FACTORS_CACHE_PATH),
+        ("ff_factors.csv", FACTORS_CSV_FALLBACK),
+        ("prices.parquet", PRICES_CACHE_PATH),
+        ("prices.csv", PRICES_CSV_FALLBACK_PATH),
+    ]
+
+    for rel_path, local_path in seed_files:
+        if local_path.exists():
+            print(f"  ✓ {rel_path} (already cached, skipping)")
+            continue
+        print(f"  ↓ {rel_path} ... ", end="", flush=True)
+        if _try_download_remote_cache(rel_path, local_path):
+            size_kb = local_path.stat().st_size // 1024
+            print(f"done ({size_kb} KB)")
+        else:
+            print("not found — will be fetched on first use")
+
+    print("\nWarmup complete.")
+
+
+def warmup_main() -> None:
+    """Entry point for `quantcontext-warmup` CLI command."""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Download QuantContext seed cache for fast cold start.",
+        epilog="Alternatively, set MARKET_DATA_BASE_URL env var before running the server.",
+    )
+    parser.add_argument(
+        "--url",
+        help="Base URL for seed cache files (overrides MARKET_DATA_BASE_URL env var)",
+    )
+    args = parser.parse_args()
+    warmup_cache(args.url)
 
 
 def _download_french_factors() -> pd.DataFrame:

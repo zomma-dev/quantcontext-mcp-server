@@ -18,8 +18,17 @@ def execute_pipeline(
         candidates: final DataFrame after all stages
     """
     universe_name = pipeline.get("universe", "sp500")
-    candidates = get_universe(date, universe_name)
     stages = sorted(pipeline.get("stages", []), key=lambda s: s.get("order", 0))
+
+    # Avoid 500+ per-ticker yfinance calls when no stage needs fundamental data.
+    # Price-only screens (momentum, technical_signal, mean_reversion) set
+    # needs_fundamentals=False in their SKILL_META; all others default to True.
+    needs_fundamentals = any(
+        SKILL_REGISTRY.get(s.get("skill", ""), {}).get("meta", {}).get("needs_fundamentals", True)
+        for s in stages
+    )
+
+    candidates = get_universe(date, universe_name, fundamentals=needs_fundamentals)
 
     results: list[dict] = []
 

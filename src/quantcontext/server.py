@@ -17,17 +17,44 @@ from quantcontext.engine.pipeline_executor import execute_pipeline
 from quantcontext.engine.backtest_engine import run_backtest
 from quantcontext.engine.factor_analysis import run_factor_regression
 from quantcontext.engine.skills.pipeline_skills.registry import SKILL_REGISTRY
+from quantcontext.engine.data import get_and_clear_warnings
 
 # ── Server ──
 
 mcp = FastMCP(
     name="quantcontext_mcp",
     instructions=(
-        "QuantContext provides deterministic quantitative trading tools. "
-        "Use screen_stocks to find candidates, backtest_strategy to test a strategy historically, "
-        "and factor_analysis to decompose returns into market factors. "
-        "All computations are deterministic — same input always produces the same output. "
-        "Tools compose naturally: screen → backtest → factor analysis."
+        "QuantContext provides deterministic quantitative trading tools: stock screening, "
+        "backtesting, and Fama-French factor analysis. Tools compose naturally: "
+        "screen_stocks → backtest_strategy → factor_analysis.\n\n"
+
+        "WHEN TO ASK VS PROCEED:\n"
+        "- If the user specifies a strategy (e.g. 'value stocks', 'momentum', 'low PE'), "
+        "proceed directly — map their intent to the closest screen_type and config.\n"
+        "- If the request is completely open-ended (e.g. 'screen some stocks', 'run a backtest'), "
+        "ask ONE clarifying question: what kind of stocks or strategy they have in mind. "
+        "Do not ask multiple questions at once.\n"
+        "- For backtests, if no time period is mentioned, default to the last 2 years. "
+        "If no rebalance frequency is mentioned, default to monthly.\n\n"
+
+        "MAPPING USER INTENT TO TOOLS:\n"
+        "- 'value', 'cheap', 'low PE' → fundamental_screen or value_screen\n"
+        "- 'momentum', 'trending', 'winners' → momentum_screen\n"
+        "- 'quality', 'profitable', 'strong balance sheet' → quality_screen\n"
+        "- 'oversold', 'mean reversion', 'bounce' → mean_reversion\n"
+        "- 'technical', 'RSI', 'moving average' → technical_signal\n"
+        "- 'multi-factor', 'blend' → factor_model\n\n"
+
+        "SENSIBLE DEFAULTS (use when not specified):\n"
+        "- universe: sp500\n"
+        "- rebalance: monthly\n"
+        "- sizing: equal_weight\n"
+        "- backtest period: 2 years ending today\n"
+        "- momentum lookback: 200 days, top 20%\n"
+        "- value screen: pe_lt=20\n"
+        "- fundamental screen: pe_lt=15, roe_gt=0.10\n\n"
+
+        "Always tell the user which parameters you chose and why, so they can correct you."
     ),
 )
 
@@ -200,7 +227,8 @@ async def screen_stocks(
         if ctx is not None:
             await ctx.report_progress(2, 2)
 
-        return _truncate_response(json.dumps({
+        data_warnings = get_and_clear_warnings()
+        response: dict = {
             "screen_type": screen_type,
             "universe": universe,
             "date": screen_date,
@@ -209,9 +237,13 @@ async def screen_stocks(
             "count": len(candidates),
             "showing": len(clean_records),
             "results": clean_records,
-        }))
+        }
+        if data_warnings:
+            response["warnings"] = data_warnings
+        return _truncate_response(json.dumps(response))
 
     except Exception as e:
+        get_and_clear_warnings()  # flush so next call starts clean
         return json.dumps({
             "error": str(e),
             "code": "SCREEN_ERROR",
@@ -325,9 +357,11 @@ async def backtest_strategy(
         metrics = result.get("metrics", {})
         trades = result.get("trades", [])
 
-        # Sample equity curve: first, last, and ~20 evenly spaced points
-        if len(equity_curve) > 25:
-            step = len(equity_curve) // 20
+        # Sample equity curve: keep full curve for short backtests (< 100 days),
+        # otherwise sample to ~50 evenly spaced points.
+        # Minimum 30 points required for factor_analysis to work downstream.
+        if len(equity_curve) > 100:
+            step = max(1, len(equity_curve) // 50)
             sampled_curve = [equity_curve[0]]
             for i in range(step, len(equity_curve) - 1, step):
                 sampled_curve.append(equity_curve[i])
@@ -354,7 +388,8 @@ async def backtest_strategy(
         if ctx is not None:
             await ctx.report_progress(3, 3)
 
-        return _truncate_response(json.dumps({
+        data_warnings = get_and_clear_warnings()
+        response: dict = {
             "strategy": {
                 "universe": universe,
                 "rebalance": rebalance,
@@ -366,9 +401,13 @@ async def backtest_strategy(
             "equity_curve": sampled_curve,
             "equity_curve_points": len(equity_curve),
             "trades": trade_summary,
-        }))
+        }
+        if data_warnings:
+            response["warnings"] = data_warnings
+        return _truncate_response(json.dumps(response))
 
     except Exception as e:
+        get_and_clear_warnings()  # flush so next call starts clean
         return json.dumps({
             "error": str(e),
             "code": "BACKTEST_ERROR",

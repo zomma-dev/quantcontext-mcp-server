@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "/docs";
+
 export function Hero() {
   const [copied, setCopied] = useState(false);
 
@@ -126,7 +128,7 @@ export function Hero() {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <a
-              href="http://localhost:3333"
+              href={ DOCS_URL }
               className="text-sm px-5 py-2.5 rounded-md transition-all"
               style={{
                 fontFamily: "var(--font-mono)",

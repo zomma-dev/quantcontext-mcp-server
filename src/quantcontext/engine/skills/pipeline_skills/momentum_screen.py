@@ -5,6 +5,7 @@ import pandas as pd
 SKILL_META = {
     "id": "momentum_screen",
     "type": "screen",
+    "needs_fundamentals": False,
     "params": {
         "lookback_days": {"type": "int", "description": "Return lookback period in trading days"},
         "top_pct": {"type": "float", "description": "Keep top X% of stocks by return"},

@@ -1,0 +1,78 @@
+name: Refresh Seed Cache
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"  # Sundays at 3am UTC
+  workflow_dispatch:       # manual trigger from GitHub UI
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+          pip install lxml pyarrow
+
+      - name: Generate seed cache
+        run: python scripts/generate_seed_cache.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install @vercel/blob
+        run: npm install @vercel/blob
+
+      - name: Upload to Vercel Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          node - <<'NODEEOF'
+          const { put } = require('@vercel/blob');
+          const fs = require('fs');
+          const path = require('path');
+
+          const CACHE_DIR = path.join(process.env.HOME, '.cache', 'quantcontext');
+          const FILES = [
+            'sp500_tickers.json',
+            'nasdaq100_tickers.json',
+            'ff_factors.parquet',
+            'prices.parquet',
+          ];
+
+          (async () => {
+            let baseUrl = null;
+            for (const file of FILES) {
+              const filePath = path.join(CACHE_DIR, file);
+              if (!fs.existsSync(filePath)) {
+                console.error('MISSING: ' + filePath);
+                process.exit(1);
+              }
+              const sizeMB = (fs.statSync(filePath).size / 1e6).toFixed(1);
+              process.stdout.write('Uploading ' + file + ' (' + sizeMB + ' MB)... ');
+              const blob = await put('seed/' + file, fs.readFileSync(filePath), {
+                access: 'public',
+                addRandomSuffix: false,
+                allowOverwrite: true,
+              });
+              console.log('done -> ' + blob.url);
+              if (!baseUrl) {
+                baseUrl = blob.url.replace(/\/[^/]+$/, '');
+              }
+            }
+            console.log('\nSEED_DATA_BASE_URL=' + baseUrl);
+            console.log('Set this as a Vercel environment variable if not already done.');
+          })();
+          NODEEOF

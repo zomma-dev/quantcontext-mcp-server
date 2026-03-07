@@ -8,6 +8,8 @@ const INSTALL_METHODS = [
   { label: "Claude Desktop", command: "claude mcp add quantcontext -- quantcontext" },
 ];
 
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "/docs";
+
 export function InstallSection() {
   const [copied, setCopied] = useState<number | null>(null);
 
@@ -88,7 +90,7 @@ export function InstallSection() {
           transition={{ delay: 0.2 }}
         >
           <a
-            href="http://localhost:3333"
+            href={DOCS_URL}
             className="text-sm underline underline-offset-4 decoration-1 transition-colors"
             style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}
             target="_blank"

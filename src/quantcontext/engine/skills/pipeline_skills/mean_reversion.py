@@ -4,6 +4,7 @@ import pandas as pd
 SKILL_META = {
     "id": "mean_reversion",
     "type": "screen",
+    "needs_fundamentals": False,
     "params": {
         "z_threshold": {"type": "float", "description": "Buy when z-score below this"},
         "lookback": {"type": "int", "description": "Rolling window in days"},

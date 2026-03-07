@@ -5,6 +5,7 @@ import numpy as np
 SKILL_META = {
     "id": "technical_signal",
     "type": "signal",
+    "needs_fundamentals": False,
     "params": {
         "indicators": {"type": "list[str]", "description": "Indicators: RSI, SMA_cross, bollinger"},
         "rsi_oversold": {"type": "float", "description": "RSI oversold threshold (default 30)"},
