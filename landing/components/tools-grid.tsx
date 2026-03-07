@@ -48,7 +48,7 @@ const TOOLS = [
     },
   },
   {
-    name: "analyze_factors",
+    name: "factor_analysis",
     label: "Factor Analysis",
     description:
       "Fama-French 4-factor decomposition: market, size, value, momentum. Alpha with t-stat and R-squared.",

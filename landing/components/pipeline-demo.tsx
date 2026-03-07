@@ -2,6 +2,14 @@
 
 import { motion } from "framer-motion";
 
+const CARD_CLASSES = [
+  "rounded-t-lg md:rounded-t-none md:rounded-l-lg",
+  "rounded-none",
+  "rounded-b-lg md:rounded-b-none md:rounded-r-lg",
+];
+
+const CARD_MARGIN = ["", "md:-ml-px -mt-px md:mt-0", "md:-ml-px -mt-px md:mt-0"];
+
 const STEPS = [
   {
     step: "01",
@@ -20,7 +28,7 @@ const STEPS = [
   {
     step: "03",
     label: "Decompose",
-    tool: "analyze_factors",
+    tool: "factor_analysis",
     prompt: "Where is the alpha coming from?",
     result: "Alpha 4.7% (t=1.87) \u00b7 HML 0.49 \u00b7 R\u00b2 0.78",
   },
@@ -43,13 +51,13 @@ export function PipelineDemo() {
           className="text-3xl mb-3"
           style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
         >
-          ❯ From question to conviction.
+          From question to conviction.
         </h2>
         <p
           className="text-sm mb-12"
           style={{ color: "var(--text-secondary)" }}
         >
-          Screen, backtest, decompose. Copy any prompt below into Claude.
+          Screen, backtest, decompose. Copy any prompt below into your agent.
         </p>
 
         <div className="flex flex-col md:flex-row gap-0">
@@ -63,17 +71,10 @@ export function PipelineDemo() {
               transition={{ duration: 0.4, delay: i * 0.12 }}
             >
               <div
-                className="p-6 border h-full"
+                className={`p-6 border h-full ${CARD_CLASSES[i]} ${CARD_MARGIN[i]}`}
                 style={{
                   background: "var(--bg-page)",
                   borderColor: "var(--border-default)",
-                  marginLeft: i > 0 ? "-1px" : 0,
-                  borderRadius:
-                    i === 0
-                      ? "8px 0 0 8px"
-                      : i === STEPS.length - 1
-                        ? "0 8px 8px 0"
-                        : "0",
                 }}
               >
                 <div className="flex items-center gap-3 mb-4">

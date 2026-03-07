@@ -14,15 +14,19 @@ body, p, li, td, th {
 
 code, pre, kbd {
   font-family: "JetBrains Mono", monospace !important;
-  font-size: 0.875em;
+  font-size: 0.9rem;
 }
 
-pre {
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 8px !important;
+pre code {
+  font-size: 1em;
 }
 
 aside {
   background: #f8fafc !important;
   border-right: 1px solid #e2e8f0;
+  font-size: 1rem !important;
+}
+
+aside * {
+  font-size: inherit !important;
 }

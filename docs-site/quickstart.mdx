@@ -3,15 +3,15 @@ title: Quickstart
 description: Add QuantContext to Claude Desktop or Claude Code in two minutes
 ---
 
-## Install the package
+## Install
 
 ```bash
 pip install quantcontext-mcp
 ```
 
-## Connect to Claude Desktop
+## Add to Claude Desktop
 
-Add this to your `claude_desktop_config.json` (find it at `~/Library/Application Support/Claude/` on macOS):
+Open `~/Library/Application Support/Claude/claude_desktop_config.json` and add:
 
 ```json
 {
@@ -25,38 +25,120 @@ Add this to your `claude_desktop_config.json` (find it at `~/Library/Application
 
 Restart Claude Desktop. You'll see `quantcontext` appear in the tools panel.
 
-## Connect to Claude Code
+## Add to Claude Code
 
 ```bash
 claude mcp add quantcontext -- quantcontext
 ```
 
-## Verify it's working
+## Use from Python
 
-Ask Claude:
+If you have an existing script, you can import the tools directly without an agent:
 
-> "Screen S&P 500 for value stocks with PE under 15 and ROE above 12%"
+```python
+from quantcontext.server import screen_stocks, backtest_strategy, factor_analysis
+import asyncio, json
 
-Claude will call `screen_stocks` and return a ranked list of candidates with actual market data. The first call downloads and caches market data (~10s). Subsequent calls use the cache (under 1s for screening, 3–8s for backtesting).
+bt = json.loads(asyncio.run(backtest_strategy(
+    stages=[{"order": 1, "type": "screen", "skill": "momentum_screen", "config": {"lookback_days": 200, "top_pct": 0.2}}],
+    universe="nasdaq100",
+    rebalance="monthly",
+    start_date="2023-01-01",
+)))
+print(bt["metrics"])
+```
 
-## Try the full workflow
+See [Architecture](/architecture#use-from-python) for the full example with factor analysis.
+
+---
+
+## Try it now
+
+Describe a strategy and the agent translates it into executable code, backtests it, and breaks down the returns. Paste any of these to start:
+
+**Find stocks:**
+```
+Screen S&P 500 for value stocks with PE under 15 and ROE above 12%
+```
+
+**Test a strategy:**
+```
+Backtest a top-20% momentum strategy on Nasdaq 100, monthly rebalance, last 2 years
+```
+
+**Full research workflow:**
+```
+Screen S&P 500 for cheap, high-quality stocks. Backtest monthly over 3 years,
+then run factor analysis. Is the return real alpha or just factor exposure?
+```
+
+The first call downloads and caches market data (~10–30 seconds). Every call after that uses the cache: screening in under a second, backtesting in 3–8 seconds.
+
+<Tip>
+  If the first call is slow, that's expected: it's downloading 3 years of price data for 500+ tickers and caching it at `~/.cache/quantcontext/`. See [Data and caching](#data-and-caching) to skip this.
+</Tip>
+
+---
+
+## What you can ask
+
+QuantContext understands natural language intent. You don't need to know the tool names or parameters. Just describe what you want.
+
+| You say | What happens |
+|---------|-------------|
+| "value stocks", "cheap", "low PE" | `screen_stocks` with `fundamental_screen` |
+| "momentum", "top performers", "52-week winners" | `screen_stocks` with `momentum_screen` |
+| "quality", "profitable", "strong balance sheet" | `screen_stocks` with `quality_screen` |
+| "oversold", "mean reversion", "bounce candidates" | `screen_stocks` with `mean_reversion` |
+| "RSI", "moving average", "golden cross" | `screen_stocks` with `technical_signal` |
+| "blend value, momentum, quality" | `screen_stocks` with `factor_model` |
+| "backtest", "how would this have done" | `backtest_strategy` |
+| "where does the alpha come from", "factor exposure" | `factor_analysis` |
+
+---
+
+## The full workflow
+
+Describe your thesis. The agent turns it into code, runs it, and tells you if it works.
 
 <Steps>
-  <Step title="Screen for candidates">
-    "Find S&P 500 stocks trading below 12x earnings with return on equity above 15%"
+  <Step title="Describe the strategy">
+    "Find S&P 500 stocks with PE under 15, ROE above 12%, and positive revenue growth"
+
+    The agent restates the exact parameters it will use before running anything.
   </Step>
-  <Step title="Backtest the strategy">
-    "Backtest a strategy that buys those value stocks, monthly rebalance, over the last 2 years"
+  <Step title="Backtest it">
+    "Backtest that screen as a monthly-rebalanced strategy over the last 3 years with a 15% stop loss"
+
+    Returns CAGR, Sharpe, max drawdown, equity curve, and full trade log.
   </Step>
-  <Step title="Decompose the returns">
-    "Run factor analysis on the backtest:where is the return coming from? Is the alpha real?"
+  <Step title="Understand the returns">
+    "Run factor analysis on the backtest. Is the alpha statistically significant, or is it just the value premium?"
+
+    Decomposes returns into Fama-French factors. Tells you if the alpha is real.
   </Step>
 </Steps>
 
-## Cache location
+## Data and caching
 
-Data is cached at `~/.quantcontext/cache/`. Total disk usage is ~50MB for full S&P 500 coverage.
+- **Price data:** Yahoo Finance daily OHLCV, cached as parquet at `~/.cache/quantcontext/`
+- **Fundamentals:** Yahoo Finance per-ticker snapshot, 24-hour cache
+- **Factor data:** Kenneth French Data Library (Fama-French 4 factors), cached locally
+- **Universes:** S&P 500 (~500 stocks), Nasdaq 100 (~100 stocks), Russell 2000 (~2000 stocks)
+- **No API keys required.** All public data.
 
-<Tip>
-  The first call to any tool is slow because it downloads market data. After that, screening completes in under a second and backtesting in 3–8 seconds.
-</Tip>
+## Skip the cold start (optional)
+
+The first tool call builds the local cache from scratch, which takes 10-30 seconds. To skip this, run the warmup command once after install:
+
+```bash
+quantcontext-warmup --url https://quantcontext.ai/api/data
+```
+
+This downloads pre-built price data, factor data, and universe lists directly to `~/.cache/quantcontext/`. After that, all tool calls use the local cache and the cold start is gone.
+
+You can also set the URL as an environment variable so the server picks it up automatically on first use:
+
+```bash
+export MARKET_DATA_BASE_URL=https://quantcontext.ai/api/data
+```

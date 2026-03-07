@@ -6,6 +6,7 @@ Every number is computed, not generated. Same input always produces same output.
 from __future__ import annotations
 
 import asyncio
+import datetime
 import json
 from typing import Annotated
 
@@ -50,11 +51,18 @@ mcp = FastMCP(
         "- rebalance: monthly\n"
         "- sizing: equal_weight\n"
         "- backtest period: 2 years ending today\n"
+        "- initial capital: $100,000\n"
         "- momentum lookback: 200 days, top 20%\n"
         "- value screen: pe_lt=20\n"
         "- fundamental screen: pe_lt=15, roe_gt=0.10\n\n"
 
-        "Always tell the user which parameters you chose and why, so they can correct you."
+        "BEFORE RUNNING ANY TOOL, always state:\n"
+        "1. The exact strategy in plain English (e.g. 'Screening S&P 500 for stocks with PE < 15 and ROE > 12%').\n"
+        "2. Every parameter being used, including defaults that were not explicitly specified "
+        "(e.g. 'universe: sp500 (default), rebalance: monthly (default), lookback: 200 days (default)').\n"
+        "3. The exact tool call you are about to make, formatted as a JSON code block.\n"
+        "Only call the tool after presenting this summary. "
+        "This lets the user confirm or correct the strategy before computation runs."
     ),
 )
 
@@ -285,9 +293,9 @@ async def backtest_strategy(
     start_date: Annotated[str, Field(
         description="Backtest start date in YYYY-MM-DD format"
     )] = "2023-01-01",
-    end_date: Annotated[str, Field(
-        description="Backtest end date in YYYY-MM-DD format"
-    )] = "2025-12-31",
+    end_date: Annotated[str | None, Field(
+        description="Backtest end date in YYYY-MM-DD format. Defaults to today."
+    )] = None,
     max_position_size: Annotated[float | None, Field(
         description="Maximum weight per position (0-1). E.g., 0.1 = 10% max per stock"
     )] = None,
@@ -316,6 +324,9 @@ async def backtest_strategy(
     # Input validation: universe
     if err := _validate_universe(universe):
         return err
+
+    if end_date is None:
+        end_date = datetime.date.today().strftime("%Y-%m-%d")
 
     if ctx is not None:
         await ctx.report_progress(0, 3)
@@ -352,22 +363,9 @@ async def backtest_strategy(
             await ctx.report_progress(2, 3)
             await ctx.info("Backtest complete. Formatting results…")
 
-        # Slim down the output — full equity curve can be huge
         equity_curve = result.get("equity_curve", [])
         metrics = result.get("metrics", {})
         trades = result.get("trades", [])
-
-        # Sample equity curve: keep full curve for short backtests (< 100 days),
-        # otherwise sample to ~50 evenly spaced points.
-        # Minimum 30 points required for factor_analysis to work downstream.
-        if len(equity_curve) > 100:
-            step = max(1, len(equity_curve) // 50)
-            sampled_curve = [equity_curve[0]]
-            for i in range(step, len(equity_curve) - 1, step):
-                sampled_curve.append(equity_curve[i])
-            sampled_curve.append(equity_curve[-1])
-        else:
-            sampled_curve = equity_curve
 
         # Summarize trades
         trade_summary = {
@@ -398,8 +396,9 @@ async def backtest_strategy(
                 "period": f"{start_date} to {end_date}",
             },
             "metrics": clean_metrics,
-            "equity_curve": sampled_curve,
-            "equity_curve_points": len(equity_curve),
+            # Full daily curve — required for factor_analysis to work downstream.
+            # Pass this directly to factor_analysis as equity_curve.
+            "equity_curve": equity_curve,
             "trades": trade_summary,
         }
         if data_warnings:

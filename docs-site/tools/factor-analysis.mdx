@@ -3,7 +3,7 @@ title: factor_analysis
 description: Decompose strategy returns into Fama-French factors using OLS regression
 ---
 
-**When to use:** The user wants to understand where returns come from:is it alpha or factor exposure? Any query about "factor analysis", "decompose returns", "where does alpha come from", "factor exposure", "Fama-French", or "what's driving the returns" should use this tool.
+**When to use:** The user wants to understand where returns come from: is it alpha or factor exposure? Any query about "factor analysis", "decompose returns", "where does alpha come from", "factor exposure", "Fama-French", or "what's driving the returns" should use this tool.
 
 **What it returns:** Alpha (daily and annualized) with t-statistic, factor loadings (market, size, value, momentum) with t-statistics, R-squared, residual volatility, and interpretation hints.
 
@@ -53,11 +53,11 @@ description: Decompose strategy returns into Fama-French factors using OLS regre
 ### Alpha
 
 <Warning>
-  For a single pre-specified strategy, `|t| >= 2` (~95% confidence) is a reasonable significance threshold. If the strategy was discovered by testing many parameter combinations, a higher bar applies — Harvey, Liu & Zhu (2016) suggest t > 3.0 after multiple testing correction.
+  For a single pre-specified strategy, `|t| >= 2` (~95% confidence) is a reasonable significance threshold. If the strategy was discovered by testing many parameter combinations, a higher bar applies. Harvey, Liu & Zhu (2016) suggest t > 3.0 after multiple testing correction.
 </Warning>
 
-- **Significant alpha** (`|t| >= 2`):The strategy generates returns beyond systematic factor exposure. The alpha cannot be easily replicated with factor ETFs.
-- **Insignificant alpha** (`|t| < 2`):Returns may be explained by factor exposure alone. Extending the backtest period may resolve this.
+- **Significant alpha** (`|t| >= 2`): The strategy generates returns beyond systematic factor exposure. The alpha cannot be easily replicated with factor ETFs.
+- **Insignificant alpha** (`|t| < 2`): Returns may be explained by factor exposure alone. Extending the backtest period may resolve this.
 
 ### Factor Loadings
 
@@ -72,8 +72,8 @@ The magnitude of each loading indicates exposure strength. A loading of 0.5 on H
 
 ### R-squared
 
-- **High R-squared (> 0.7)**:Most return variance is explained by the four factors. The strategy is largely replicable with factor ETFs.
-- **Low R-squared (< 0.4)**:Significant idiosyncratic return. The strategy is doing something the factors don't capture.
+- **High R-squared (> 0.7)**: Most return variance is explained by the four factors. The strategy is largely replicable with factor ETFs.
+- **Low R-squared (< 0.4)**: Significant idiosyncratic return. The strategy is doing something the factors don't capture.
 
 ## What to do next
 

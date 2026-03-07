@@ -7,7 +7,7 @@ const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "/docs";
 const LINKS = [
   { label: "Tools", href: "#tools" },
   { label: "Docs", href: DOCS_URL, external: true },
-  { label: "GitHub", href: "https://github.com/jihjihk/quantcontext-mcp-server", external: true },
+  { label: "GitHub", href: "https://github.com/zomma-dev/quantcontext-mcp-server", external: true },
 ];
 
 export function Nav() {

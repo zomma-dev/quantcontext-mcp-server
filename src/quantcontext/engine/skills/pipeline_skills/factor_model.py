@@ -22,10 +22,24 @@ def _z_score(series: pd.Series) -> pd.Series:
 
 def run(universe: pd.DataFrame, config: dict, date: str) -> pd.DataFrame:
     df = universe.copy()
-    factors = config.get("factors", ["value", "quality"])
-    weights = config.get("weights", [1.0 / len(factors)] * len(factors))
+    raw_weights = config.get("weights", None)
+
+    if isinstance(raw_weights, dict) and raw_weights:
+        # Dict format (documented API): {"value": 0.3, "momentum": 0.3, ...}
+        factors = list(raw_weights.keys())
+        weights = [float(v) for v in raw_weights.values()]
+    elif isinstance(raw_weights, list) and raw_weights:
+        # Legacy list format: factors must be provided separately
+        factors = config.get("factors", ["value", "quality"])
+        weights = [float(w) for w in raw_weights]
+    else:
+        factors = config.get("factors", ["value", "quality"])
+        weights = [1.0 / len(factors)] * len(factors)
+
     top_n = config.get("top_n", 20)
     w_sum = sum(weights)
+    if w_sum == 0:
+        w_sum = 1.0
     weights = [w / w_sum for w in weights]
     composite = pd.Series(0.0, index=df.index)
     for factor, weight in zip(factors, weights):

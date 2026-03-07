@@ -32,7 +32,7 @@ quantcontext-warmup = "quantcontext.engine.data:warmup_main"
 
 [project.urls]
 Homepage = "https://quantcontext.ai"
-Repository = "https://github.com/jihjihk/quantcontext-mcp-server"
+Repository = "https://github.com/zomma-dev/quantcontext-mcp-server"
 Documentation = "https://quantcontext.ai/docs"
 
 [build-system]

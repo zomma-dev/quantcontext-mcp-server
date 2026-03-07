@@ -4,8 +4,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 
 const INSTALL_METHODS = [
+  { label: "Claude Code", command: "claude mcp add quantcontext -- quantcontext" },
   { label: "pip", command: "pip install quantcontext-mcp" },
-  { label: "Claude Desktop", command: "claude mcp add quantcontext -- quantcontext" },
 ];
 
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL || "/docs";
@@ -62,12 +62,14 @@ export function InstallSection() {
               >
                 {method.label}
               </span>
-              <code
-                className="text-sm flex-1 text-left font-mono"
-                style={{ color: "rgba(255,255,255,0.85)" }}
-              >
-                {method.command}
-              </code>
+              <div className="flex-1 min-w-0 overflow-x-auto">
+                <code
+                  className="text-sm font-mono whitespace-nowrap"
+                  style={{ color: "rgba(255,255,255,0.85)" }}
+                >
+                  {method.command}
+                </code>
+              </div>
               <button
                 onClick={() => handleCopy(method.command, i)}
                 className="text-xs px-3 py-1 rounded transition-all cursor-pointer shrink-0 font-mono"
@@ -99,7 +101,7 @@ export function InstallSection() {
             Documentation
           </a>
           <a
-            href="https://github.com/jihjihk/quantcontext-mcp-server"
+            href="https://github.com/zomma-dev/quantcontext-mcp-server"
             className="text-sm underline underline-offset-4 decoration-1 transition-colors"
             style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}
             target="_blank"

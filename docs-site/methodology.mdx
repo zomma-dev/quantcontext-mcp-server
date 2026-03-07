@@ -1,6 +1,6 @@
 ---
 title: "Methodology"
-description: "How QuantContext computes every number — data sources, algorithms, and statistical methods"
+description: "How QuantContext computes every number: data sources, algorithms, and statistical methods"
 ---
 
 ## Theoretical Foundations
@@ -11,7 +11,7 @@ QuantContext implements established quantitative finance methods. This page expl
 - **Factor investing**: Fama & French (1993), Carhart (1997), Fama & French (2015)
 - **Portfolio construction**: Markowitz (1952), risk parity (Maillard, Roncalli, Teiletche 2010)
 - **Risk measurement**: Artzner et al. (1999) coherent risk measures, Basel frameworks
-- **The factor zoo warning**: Harvey, Liu, Zhu (2016) — over 300 published factors, most don't replicate. A t-stat of 2.0 is no longer sufficient; need t > 3.0 after multiple testing correction.
+- **The factor zoo warning**: Harvey, Liu, Zhu (2016) documented over 300 published factors, most of which don't replicate. A t-stat of 2.0 is no longer sufficient; t > 3.0 is needed after multiple testing correction.
 
 ---
 
@@ -60,7 +60,7 @@ Stocks are sorted descending by this return. The `top_pct` parameter (e.g., 0.10
 
 Ranks stocks by valuation metrics (PE ratio or a composite score) and keeps the cheapest N stocks. Lower PE = higher rank. Stocks with negative earnings (undefined PE) are excluded.
 
-**Academic context:** The value premium — that cheap stocks outperform expensive ones — was documented by Fama & French (1993) as the HML factor. Historical long-short returns: ~3-5% annually. Whether this is compensation for distress risk or behavioral overreaction remains debated. The Fama-French 5-factor model (2015) showed HML is largely spanned by profitability (RMW) and investment (CMA) factors — its information is captured by the other two, though the value premium itself still exists. McLean & Pontiff (2016) showed factor returns decline ~58% after academic publication as capital exploits them.
+**Academic context:** The value premium (that cheap stocks outperform expensive ones) was documented by Fama & French (1993) as the HML factor. Historical long-short returns: ~3-5% annually. Whether this is compensation for distress risk or behavioral overreaction remains debated. The Fama-French 5-factor model (2015) showed HML is largely spanned by profitability (RMW) and investment (CMA) factors; its information is captured by the other two, though the value premium itself still exists. McLean & Pontiff (2016) showed factor returns decline ~58% after academic publication as capital exploits them.
 
 ### factor_model
 
@@ -90,7 +90,7 @@ $$
 z_i = \frac{P_i - \mu_{i,N}}{\sigma_{i,N}}
 $$
 
-Where $\mu_{i,N}$ and $\sigma_{i,N}$ are the rolling mean and standard deviation over $N$ days. A stock with $z < -2.0$ is trading 2 standard deviations below its recent average — a potential mean-reversion buy signal. The threshold is configurable.
+Where $\mu_{i,N}$ and $\sigma_{i,N}$ are the rolling mean and standard deviation over $N$ days. A stock with $z < -2.0$ is trading 2 standard deviations below its recent average, making it a potential mean-reversion buy signal. The threshold is configurable.
 
 ---
 
@@ -133,7 +133,7 @@ $$
 
 Where $\sigma_i$ is the 20-day realized volatility (annualized standard deviation of daily returns) for stock $i$. Lower-volatility stocks get larger weights. This tends to produce smoother portfolio returns than equal weighting.
 
-**Academic context:** Inverse-volatility weighting is a simplified form of risk-based portfolio construction in the family of risk parity methods (Maillard, Roncalli, Teiletche 2010). True risk parity equalizes *risk contributions* ($w_i \cdot (\Sigma w)_i$), which accounts for correlations. Inverse-volatility ignores correlations — it is equivalent to risk parity only when all pairwise correlations are identical. Despite this simplification, it often outperforms equal-weight in practice because it implicitly tilts toward the low-volatility anomaly (~1-3% risk-adjusted alpha per Frazzini & Pedersen 2014).
+**Academic context:** Inverse-volatility weighting is a simplified form of risk-based portfolio construction in the family of risk parity methods (Maillard, Roncalli, Teiletche 2010). True risk parity equalizes *risk contributions* ($w_i \cdot (\Sigma w)_i$), which accounts for correlations. Inverse-volatility ignores correlations; it is equivalent to risk parity only when all pairwise correlations are identical. Despite this simplification, it often outperforms equal-weight in practice because it implicitly tilts toward the low-volatility anomaly (~1-3% risk-adjusted alpha per Frazzini & Pedersen 2014).
 
 ### Risk Controls
 
@@ -209,7 +209,7 @@ Total traded value divided by average portfolio value divided by years. Higher t
 
 ## Factor Analysis (Fama-French Regression)
 
-The `analyze_factors` tool performs a Fama-French 4-factor regression on any backtest result. This is the most rigorous section — it tells you **where your returns actually come from**.
+The `factor_analysis` tool performs a Fama-French 4-factor regression on any backtest result. This section tells you **where your returns actually come from**.
 
 ### What Are Fama-French Factors?
 
@@ -231,7 +231,7 @@ Each term has a precise meaning:
 | HML | High Minus Low | Long high book-to-market (value), short low book-to-market (growth). Positive loading means the strategy tilts toward value stocks. |
 | Mom | Momentum | Winners minus losers over the past 12 months (skipping the most recent month). Positive loading means the strategy tends to buy recent winners. |
 | $\alpha$ | Alpha (intercept) | Return **not explained** by any factor. This is what active managers claim to generate. |
-| $\epsilon$ | Residual | Unexplained noise — the part of returns that is neither systematic factor exposure nor consistent alpha. |
+| $\epsilon$ | Residual | Unexplained noise. The part of returns that is neither systematic factor exposure nor consistent alpha. |
 
 ### How We Compute It
 
@@ -278,12 +278,12 @@ A positive alpha with $|t| > 2$ (roughly 95% confidence) suggests returns beyond
 **Factor loadings.** These tell you *where* your returns come from:
 - High $\beta_1$ (Mkt-RF) means you are mostly just riding the broad market. A long-only equity strategy will typically have $\beta_1$ between 0.8 and 1.2.
 - Positive $\beta_2$ (SMB) means your portfolio tilts toward small-caps.
-- Positive $\beta_3$ (HML) means your portfolio tilts toward value stocks. If you built a "value screen," you should expect a positive HML loading — that confirms the screen is working.
+- Positive $\beta_3$ (HML) means your portfolio tilts toward value stocks. If you built a "value screen," you should expect a positive HML loading. That confirms the screen is working.
 - Positive $\beta_4$ (Mom) means your portfolio tends to hold recent winners.
 
 **R-squared.** How much of your return variance is explained by the four factors.
 - $R^2 = 0.95$ means 95% of your strategy's daily movement is attributable to factor exposure. Only 5% is alpha or idiosyncratic risk.
-- $R^2 = 0.50$ means the factors explain half your variance — the strategy has significant idiosyncratic behavior.
+- $R^2 = 0.50$ means the factors explain half your variance; the strategy has significant idiosyncratic behavior.
 - Most long-only equity strategies will have $R^2$ between 0.80 and 0.95.
 
 **Residual volatility.** The annualized standard deviation of the regression residuals ($\epsilon$):
@@ -292,7 +292,7 @@ $$
 \sigma_{\epsilon,\text{annual}} = \sqrt{252} \times \text{std}(\epsilon)
 $$
 
-Lower residual volatility means returns are mostly systematic. Higher means more idiosyncratic risk. Neither is inherently good or bad — it depends on whether the idiosyncratic component generates positive alpha.
+Lower residual volatility means returns are mostly systematic. Higher means more idiosyncratic risk. Neither is inherently good or bad; it depends on whether the idiosyncratic component generates positive alpha.
 
 ### Data Source
 

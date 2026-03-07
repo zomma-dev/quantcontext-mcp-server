@@ -9,16 +9,16 @@ export function Hero() {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText("pip install quantcontext-mcp");
+    navigator.clipboard.writeText("claude mcp add quantcontext -- quantcontext");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <section className="px-6 pt-28 pb-20 max-w-6xl mx-auto">
+    <section className="px-6 pt-20 lg:pt-28 pb-16 lg:pb-20 max-w-6xl mx-auto">
       {/* Badge */}
       <motion.div
-        className="flex items-center gap-2.5 mb-8"
+        className="flex flex-wrap items-center gap-x-2.5 gap-y-2 mb-8"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -42,9 +42,9 @@ export function Hero() {
         </span>
       </motion.div>
 
-      <div className="flex flex-col lg:flex-row items-start gap-14">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-14 lg:gap-14">
         {/* Left column */}
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 w-full space-y-6">
           <motion.h1
             className="text-4xl lg:text-[52px] leading-[1.1] tracking-tight"
             style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
@@ -67,37 +67,38 @@ export function Hero() {
             QuantContext is an MCP server that gives AI agents real
             quant computation: stock screening, strategy backtesting,
             and Fama-French factor analysis. Every number is computed
-            from real market data, using proven models. Ground your
-            trading agent in math.
+            from real market data, using proven models.
             <br className="hidden sm:block" />
-            <span className="mt-1 inline-block">
-              Works with Claude, Codex, and any MCP client.
+            <span className="mt-3 inline-block">
+              Works with Claude, Codex, OpenCode, and any MCP-compatible agent.
             </span>
           </motion.p>
 
           {/* Install snippet */}
           <motion.div
-            className="flex items-center gap-2 px-4 py-3 rounded-lg max-w-md"
+            className="flex items-center gap-2 px-4 py-3 rounded-lg max-w-lg"
             style={{ background: "#1e293b" }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <span
-              className="text-sm select-none font-mono"
+              className="text-sm select-none font-mono shrink-0"
               style={{ color: "rgba(255,255,255,0.4)" }}
             >
               $
             </span>
-            <code
-              className="text-sm flex-1 font-mono"
-              style={{ color: "rgba(255,255,255,0.85)" }}
-            >
-              pip install quantcontext-mcp
-            </code>
+            <div className="flex-1 min-w-0 overflow-x-auto">
+              <code
+                className="text-sm font-mono whitespace-nowrap"
+                style={{ color: "rgba(255,255,255,0.85)" }}
+              >
+                claude mcp add quantcontext -- quantcontext
+              </code>
+            </div>
             <button
               onClick={handleCopy}
-              className="text-xs px-2.5 py-1 rounded transition-all cursor-pointer font-mono"
+              className="text-xs px-2.5 py-1 rounded transition-all cursor-pointer font-mono shrink-0"
               style={{
                 color: copied ? "#4ade80" : "rgba(255,255,255,0.5)",
                 background: copied ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.08)",
@@ -116,13 +117,13 @@ export function Hero() {
           >
             or:{" "}
             <code style={{ color: "var(--text-secondary)" }}>
-              claude mcp add quantcontext -- quantcontext
+              pip install quantcontext-mcp
             </code>
           </motion.p>
 
           {/* CTAs */}
           <motion.div
-            className="flex gap-3"
+            className="flex flex-wrap gap-3"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -139,7 +140,7 @@ export function Hero() {
               View Docs
             </a>
             <a
-              href="https://github.com/jihjihk/quantcontext-mcp-server"
+              href="https://github.com/zomma-dev/quantcontext-mcp-server"
               className="text-sm px-5 py-2.5 rounded-md border transition-colors"
               style={{
                 fontFamily: "var(--font-mono)",

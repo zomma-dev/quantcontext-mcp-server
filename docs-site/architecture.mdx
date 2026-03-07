@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: How QuantContext works:the LLM boundary, computation pipeline, data sources, and transport
+description: "How QuantContext works: the LLM boundary, computation pipeline, data sources, and transport"
 ---
 
 ## The LLM Boundary
@@ -29,7 +29,7 @@ QuantContext enforces a strict boundary between what LLMs do and what code does:
 │  Returns structured JSON                                 │
 │                                                          │
 │  Every number is computed from data.                     │
-│  Same input always produces same output.                 │
+│  Results are fully reproducible.                         │
 │  No LLM calls in the computation path.                   │
 └──────────────────────┬──────────────────────────────────┘
                        │
@@ -46,9 +46,9 @@ QuantContext enforces a strict boundary between what LLMs do and what code does:
 
 LLMs hallucinate numbers. QuantContext ensures every number returned to an agent is:
 
-1. **Computed from actual market data**:not generated, estimated, or hallucinated
-2. **Deterministic**:same inputs produce identical outputs, always
-3. **Auditable**:the computation path is pure Python with no randomness
+1. **Computed from actual market data**: not generated, estimated, or hallucinated
+2. **Deterministic**: same inputs produce identical outputs, always
+3. **Auditable**: the computation path is pure Python with no randomness
 
 ## How the Tools Work
 
@@ -140,12 +140,12 @@ LLMs hallucinate numbers. QuantContext ensures every number returned to an agent
 
 ## Data Sources and Caching
 
-| Source | Data | Cache TTL | Location |
-|--------|------|-----------|----------|
-| yfinance | Daily OHLCV prices | 1 day | `~/.quantcontext/cache/prices/` |
-| yfinance | Fundamentals (PE, ROE, etc.) | 7 days | `~/.quantcontext/cache/fundamentals/` |
-| Kenneth French | Fama-French + momentum factors | 30 days | `~/.quantcontext/cache/factors/` |
-| Bundled | Universe constituent lists | Package version | Installed with package |
+| Source | Data | Cache | Location |
+|--------|------|-------|----------|
+| yfinance | Daily OHLCV prices | Refreshed when stale | `~/.cache/quantcontext/prices.parquet` |
+| yfinance | Fundamentals (PE, ROE, etc.) | 24 hours per ticker | `~/.cache/quantcontext/financials/` |
+| Kenneth French | Fama-French + momentum factors | Cached indefinitely | `~/.cache/quantcontext/ff_factors.parquet` |
+| Wikipedia | Universe constituent lists | Cached on first fetch | `~/.cache/quantcontext/sp500_tickers.json` |
 
 **First call:** Downloads market data (~10s for S&P 500). Subsequent calls use the cache.
 
@@ -158,16 +158,39 @@ LLMs hallucinate numbers. QuantContext ensures every number returned to an agent
 QuantContext uses the MCP stdio transport. The server reads JSON-RPC messages from stdin and writes responses to stdout.
 
 ```bash
-# Started automatically by the MCP client:you never run this manually
+# Started automatically by the MCP client. You never run this manually.
 quantcontext
 ```
 
-For development and testing, you can call the tools directly in Python:
+## Use from Python
+
+The tools are also importable directly — no MCP client or agent required. This is useful for existing Python scripts, notebooks, or automated pipelines.
 
 ```python
 from quantcontext.server import screen_stocks, backtest_strategy, factor_analysis
 import asyncio, json
 
-result = asyncio.run(screen_stocks(universe="sp500", screen_type="value_screen"))
-print(json.loads(result))
+# Screen for candidates
+result = json.loads(asyncio.run(screen_stocks(
+    universe="sp500",
+    screen_type="fundamental_screen",
+    config={"pe_lt": 15, "roe_gt": 12},
+)))
+
+# Backtest a strategy
+bt = json.loads(asyncio.run(backtest_strategy(
+    stages=[{"order": 1, "type": "screen", "skill": "fundamental_screen", "config": {"pe_lt": 15, "roe_gt": 12}}],
+    universe="sp500",
+    rebalance="monthly",
+    start_date="2022-01-01",
+)))
+print(bt["metrics"])
+
+# Pipe the equity curve straight into factor analysis
+fa = json.loads(asyncio.run(factor_analysis(
+    equity_curve=bt["full_equity_curve"]
+)))
+print(fa["alpha_annualized"], fa["alpha_tstat"])
 ```
+
+All three functions are async and return JSON strings. Strategies must be expressed using the built-in screen types (`fundamental_screen`, `momentum_screen`, `quality_screen`, etc.) — arbitrary Python logic in the pipeline is not supported.

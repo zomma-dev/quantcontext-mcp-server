@@ -9,7 +9,7 @@ This example uses `backtest_strategy` followed by `factor_analysis`. It's the mo
 
 > "I want to test a strategy that buys the top 20% momentum stocks in the Nasdaq 100, rebalanced monthly. How would it have done over the last 2 years?"
 
-## Step 1:Backtest
+## Step 1: Backtest
 
 ```json
 {
@@ -56,7 +56,7 @@ This example uses `backtest_strategy` followed by `factor_analysis`. It's the mo
 - **Calmar ratio:** 1.77:good return per unit of peak-to-trough risk
 - **Turnover:** 3.82x/year:fairly active at 412 trades (expected for momentum)
 
-## Step 2:Factor decomposition
+## Step 2: Factor decomposition
 
 The user follows up: *"Where is the return coming from?"*
 
@@ -90,7 +90,7 @@ The user follows up: *"Where is the return coming from?"*
 
 **Agent interpretation:**
 
-**Alpha is statistically significant**:8.2% annualized, t-stat 2.34. There is genuine edge beyond factor exposure.
+**Alpha is statistically significant**: 8.2% annualized, t-stat 2.34. There is genuine edge beyond factor exposure.
 
 **Factor breakdown:**
 - **Market (1.12)**:Slightly higher beta than the market. Amplifies both gains and losses.

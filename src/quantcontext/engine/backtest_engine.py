@@ -5,6 +5,7 @@ tracks daily P&L, and computes standard metrics.
 """
 from __future__ import annotations
 
+import datetime
 import numpy as np
 import pandas as pd
 
@@ -81,6 +82,18 @@ def _enforce_limits(weights: dict[str, float], risk_limits: dict) -> dict[str, f
     return capped
 
 
+_ZERO_METRICS = {
+    "total_return": 0.0,
+    "cagr": 0.0,
+    "sharpe": 0.0,
+    "max_drawdown": 0.0,
+    "calmar": 0.0,
+    "daily_win_rate": 0.0,
+    "turnover": 0.0,
+    "total_trades": 0,
+}
+
+
 def run_backtest(pipeline: dict, config: dict) -> dict:
     """Run a deterministic backtest.
 
@@ -92,7 +105,7 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
         {equity_curve, trades, metrics, holdings_over_time, stage_results_by_date}
     """
     start = config.get("start_date", "2023-01-01")
-    end = config.get("end_date", "2025-12-31")
+    end = config.get("end_date") or datetime.date.today().strftime("%Y-%m-%d")
     initial_capital = config.get("initial_capital", 100000)
     freq = config.get("rebalance", "monthly")
     sizing = config.get("sizing", "equal_weight")
@@ -102,7 +115,7 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
 
     rebal_dates = _rebalance_dates(start, end, freq)
     if not rebal_dates:
-        return {"equity_curve": [], "trades": [], "metrics": {}, "holdings_over_time": [], "stage_results_by_date": {}}
+        return {"equity_curve": [], "trades": [], "metrics": _ZERO_METRICS, "holdings_over_time": [], "stage_results_by_date": {}}
 
     # Run pipeline once to discover tickers we'll need prices for
     _, initial_candidates = execute_pipeline(pipeline, rebal_dates[0].strftime("%Y-%m-%d"))
@@ -116,7 +129,7 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
     all_tickers = sorted(set(all_tickers))
 
     if not all_tickers:
-        return {"equity_curve": [], "trades": [], "metrics": {}, "holdings_over_time": [], "stage_results_by_date": {}}
+        return {"equity_curve": [], "trades": [], "metrics": _ZERO_METRICS, "holdings_over_time": [], "stage_results_by_date": {}}
 
     # Fetch all prices at once; forward-fill gaps (handles delistings, data holes)
     # Without ffill, NaN prices cause positions to silently drop to $0 mid-backtest
@@ -126,7 +139,7 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
     # Trading dates = all business days where we have price data
     trading_dates = prices.index.sort_values()
     if trading_dates.empty:
-        return {"equity_curve": [], "trades": [], "metrics": {}, "holdings_over_time": [], "stage_results_by_date": {}}
+        return {"equity_curve": [], "trades": [], "metrics": _ZERO_METRICS, "holdings_over_time": [], "stage_results_by_date": {}}
 
     # State
     cash = float(initial_capital)
@@ -203,14 +216,18 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
             # Liquidate positions not in target
             for ticker in list(positions.keys()):
                 if ticker not in target_weights:
+                    price = None
                     if ticker in prices.columns and date in prices.index:
-                        price = float(prices.loc[date, ticker])
-                        if pd.notna(price):
-                            cash += positions[ticker] * price
-                            trades.append({"date": date_str, "ticker": ticker, "action": "SELL",
-                                           "shares": positions[ticker], "price": price, "weight": 0, "reason": "rebalance"})
-                    positions.pop(ticker)
-                    entry_prices.pop(ticker, None)
+                        raw_price = prices.loc[date, ticker]
+                        if pd.notna(raw_price) and float(raw_price) > 0:
+                            price = float(raw_price)
+                    if price is not None:
+                        cash += positions[ticker] * price
+                        trades.append({"date": date_str, "ticker": ticker, "action": "SELL",
+                                       "shares": positions[ticker], "price": price, "weight": 0, "reason": "rebalance"})
+                        positions.pop(ticker)
+                        entry_prices.pop(ticker, None)
+                    # else: price unavailable — hold position, retry at next rebalance
 
             # Recompute portfolio value after sells
             portfolio_value = cash
@@ -291,7 +308,7 @@ def run_backtest(pipeline: dict, config: dict) -> dict:
 def _compute_metrics(equity_curve: list[dict], initial_capital: float, trades: list[dict]) -> dict:
     """Compute standard backtest metrics from an equity curve."""
     if not equity_curve:
-        return {}
+        return dict(_ZERO_METRICS)
 
     values = pd.Series([e["value"] for e in equity_curve], dtype=float)
     daily_returns = values.pct_change().dropna()

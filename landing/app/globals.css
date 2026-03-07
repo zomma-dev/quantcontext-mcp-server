@@ -202,6 +202,7 @@ body {
   font-size: 13px;
   line-height: 1.7;
   color: rgba(255,255,255,0.7);
+  overflow-x: auto;
 }
 
 .terminal-body .prompt {
@@ -383,4 +384,6 @@ body {
 /* ── Responsive stacking ── */
 @media (max-width: 768px) {
   .pipeline-card { border-radius: 10px !important; margin-left: 0 !important; }
+  .terminal-body { font-size: 11px; padding: 14px; }
+  .terminal-body td { padding-right: 8px; }
 }

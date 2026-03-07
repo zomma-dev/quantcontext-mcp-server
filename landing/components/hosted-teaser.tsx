@@ -76,14 +76,14 @@ export function HostedTeaser() {
             </p>
           ) : (
             <>
-              <form onSubmit={handleSubmit} className="flex items-center justify-center gap-3 mb-2">
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mb-2 px-4 sm:px-0">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="text-sm px-4 py-2.5 rounded-md border outline-none w-64 transition-colors"
+                  className="text-sm px-4 py-2.5 rounded-md border outline-none w-full sm:w-64 transition-colors"
                   style={{
                     fontFamily: "var(--font-mono)",
                     borderColor: "var(--border-default)",
@@ -91,31 +91,33 @@ export function HostedTeaser() {
                     color: "var(--text-primary)",
                   }}
                 />
-                <button
-                  type="submit"
-                  disabled={status === "loading"}
-                  className="text-sm px-5 py-2.5 rounded-md transition-all cursor-pointer whitespace-nowrap disabled:opacity-60"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    background: "var(--color-accent)",
-                    color: "#ffffff",
-                  }}
-                >
-                  {status === "loading" ? "Joining..." : "Join waitlist"}
-                </button>
-                <a
-                  href="https://x.com/ZommaLabs"
-                  className="text-sm px-5 py-2.5 rounded-md border transition-colors whitespace-nowrap"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    borderColor: "var(--border-default)",
-                    color: "var(--text-secondary)",
-                  }}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Follow updates
-                </a>
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    className="flex-1 sm:flex-none text-sm px-5 py-2.5 rounded-md transition-all cursor-pointer whitespace-nowrap disabled:opacity-60"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      background: "var(--color-accent)",
+                      color: "#ffffff",
+                    }}
+                  >
+                    {status === "loading" ? "Joining..." : "Join waitlist"}
+                  </button>
+                  <a
+                    href="https://x.com/ZommaLabs"
+                    className="flex-1 sm:flex-none text-sm px-5 py-2.5 rounded-md border transition-colors whitespace-nowrap text-center"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      borderColor: "var(--border-default)",
+                      color: "var(--text-secondary)",
+                    }}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Follow updates
+                  </a>
+                </div>
               </form>
               {status === "error" && (
                 <p className="text-xs" style={{ color: "var(--color-negative)" }}>

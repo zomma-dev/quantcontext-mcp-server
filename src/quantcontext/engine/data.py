@@ -235,7 +235,7 @@ def fetch_sp500_tickers() -> list[str]:
         req = urlopen(
             __import__("urllib.request", fromlist=["Request"]).Request(
                 "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-                headers={"User-Agent": "Mozilla/5.0 (compatible; quantcontext-mcp/0.1; +https://github.com/jihjihk/quantcontext-mcp-server)"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; quantcontext-mcp/0.1; +https://github.com/zomma-dev/quantcontext-mcp-server)"},
             ),
             timeout=15,
         )
@@ -274,7 +274,7 @@ def fetch_nasdaq100_tickers() -> list[str]:
         req = urlopen(
             __import__("urllib.request", fromlist=["Request"]).Request(
                 "https://en.wikipedia.org/wiki/Nasdaq-100",
-                headers={"User-Agent": "Mozilla/5.0 (compatible; quantcontext-mcp/0.1; +https://github.com/jihjihk/quantcontext-mcp-server)"},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; quantcontext-mcp/0.1; +https://github.com/zomma-dev/quantcontext-mcp-server)"},
             ),
             timeout=15,
         )

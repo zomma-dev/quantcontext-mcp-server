@@ -58,9 +58,9 @@ export function Footer() {
             </span>
             <div className="space-y-2.5">
               {[
-                { label: "GitHub", href: "https://github.com/jihjihk/quantcontext-mcp-server" },
+                { label: "GitHub", href: "https://github.com/zomma-dev/quantcontext-mcp-server" },
                 { label: "PyPI", href: "https://pypi.org/project/quantcontext-mcp/" },
-                { label: "Changelog", href: "https://github.com/jihjihk/quantcontext-mcp-server/releases" },
+                { label: "Changelog", href: "https://github.com/zomma-dev/quantcontext-mcp-server/releases" },
               ].map((link) => (
                 <a
                   key={link.label}
