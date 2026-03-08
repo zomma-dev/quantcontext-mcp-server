@@ -4,6 +4,7 @@ import json
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -22,6 +23,7 @@ FACTORS_CACHE_PATH = CACHE_DIR / "ff_factors.parquet"
 FACTORS_CSV_FALLBACK = CACHE_DIR / "ff_factors.csv"
 SP500_CACHE_PATH = CACHE_DIR / "sp500_tickers.json"
 REMOTE_CACHE_BASE_URL = os.getenv("MARKET_DATA_BASE_URL", "").rstrip("/")
+_SEED_PATH = Path(__file__).parent.parent / "data" / "fundamentals_seed.json"
 
 # ── Per-request warning accumulator (thread-local so concurrent calls don't mix) ──
 _thread_local = threading.local()
@@ -438,6 +440,36 @@ def enrich_with_price_data(df: pd.DataFrame, date: str, *, prices: pd.DataFrame 
     return df
 
 
+def _load_fundamentals_seed() -> dict | None:
+    """Load bundled fundamentals seed. Returns dict keyed by ticker, or None."""
+    if not _SEED_PATH.exists():
+        return None
+    try:
+        with open(_SEED_PATH) as f:
+            seed = json.load(f)
+        return seed.get("tickers", {})
+    except Exception:
+        return None
+
+
+def fetch_financials_batch(tickers: list[str], max_workers: int = 20) -> list[dict]:
+    """Fetch financials for multiple tickers in parallel."""
+    def _fetch_one(ticker: str) -> dict | None:
+        try:
+            return fetch_financials(ticker)
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_fetch_one, t): t for t in tickers}
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                results.append(result)
+    return results
+
+
 def get_universe(date: str, universe: str = "sp500", fundamentals: bool = True, *, enrich: bool = True, prices: pd.DataFrame | None = None) -> pd.DataFrame:
     """Return a DataFrame of all tickers in the universe.
 
@@ -461,13 +493,16 @@ def get_universe(date: str, universe: str = "sp500", fundamentals: bool = True, 
             df = enrich_with_price_data(df, date, prices=prices)
         return df
 
-    rows = []
-    for ticker in tickers:
-        try:
-            fin = fetch_financials(ticker)
-            rows.append(fin)
-        except Exception:
-            continue
+    # Try bundled seed first (instant), then fall back to per-ticker fetch
+    seed = _load_fundamentals_seed()
+    if seed:
+        rows = [seed[t] for t in tickers if t in seed]
+    else:
+        _warn(
+            f"Fundamentals seed not found. Fetching live data for {len(tickers)} tickers "
+            "(~30s with parallel fetch). Run `python scripts/refresh_fundamentals.py` to pre-generate."
+        )
+        rows = fetch_financials_batch(tickers)
 
     df = pd.DataFrame(rows)
     if enrich:
