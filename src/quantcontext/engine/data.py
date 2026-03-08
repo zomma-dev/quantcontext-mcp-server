@@ -329,8 +329,21 @@ def fetch_russell2000_tickers() -> list[str]:
     return list(FALLBACK_RUSSELL2000_TICKERS)
 
 
+import re as _re
+
+_TICKER_RE = _re.compile(r"^[A-Z0-9.\-]{1,10}$")
+
+
+def _validate_ticker(ticker: str) -> str:
+    """Sanitize ticker to prevent path traversal in cache paths."""
+    if not _TICKER_RE.match(ticker):
+        raise ValueError(f"Invalid ticker symbol: {ticker!r}")
+    return ticker
+
+
 def fetch_financials(ticker: str) -> dict:
     """Fetch basic financials and cache by ticker at engine/.cache/financials/{ticker}.json."""
+    ticker = _validate_ticker(ticker)
     cache_path = FINANCIALS_DIR / f"{ticker}.json"
     if not cache_path.exists():
         _try_download_remote_cache(f"financials/{ticker}.json", cache_path)
