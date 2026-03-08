@@ -23,7 +23,11 @@ FACTORS_CACHE_PATH = CACHE_DIR / "ff_factors.parquet"
 FACTORS_CSV_FALLBACK = CACHE_DIR / "ff_factors.csv"
 SP500_CACHE_PATH = CACHE_DIR / "sp500_tickers.json"
 REMOTE_CACHE_BASE_URL = os.getenv("MARKET_DATA_BASE_URL", "").rstrip("/")
-_SEED_PATH = Path(__file__).parent.parent / "data" / "fundamentals_seed.json"
+_SEED_DIR = Path(__file__).parent.parent / "data"
+_SEED_PATH = _SEED_DIR / "fundamentals_seed.json"
+_SP500_SEED_PATH = _SEED_DIR / "sp500_tickers.json"
+_NASDAQ100_SEED_PATH = _SEED_DIR / "nasdaq100_tickers.json"
+_FACTORS_SEED_PATH = _SEED_DIR / "ff_factors.csv"
 
 # ── Per-request warning accumulator (thread-local so concurrent calls don't mix) ──
 _thread_local = threading.local()
@@ -221,17 +225,29 @@ def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
 
 def fetch_sp500_tickers() -> list[str]:
     """Return current S&P 500 tickers. Cache only real scraped data, never the fallback."""
+    # 1. Check user cache (~/.cache/quantcontext)
     if not SP500_CACHE_PATH.exists():
         _try_download_remote_cache("sp500_tickers.json", SP500_CACHE_PATH)
 
     if SP500_CACHE_PATH.exists():
         with open(SP500_CACHE_PATH) as f:
             tickers = json.load(f)
-        if len(tickers) >= 400:  # sanity check: real S&P 500 has 500+ constituents
+        if len(tickers) >= 400:
             return tickers
-        # Cached list is too small (e.g. a stale fallback was cached) — delete and re-fetch
         SP500_CACHE_PATH.unlink(missing_ok=True)
 
+    # 2. Check bundled seed (shipped with package)
+    if _SP500_SEED_PATH.exists():
+        try:
+            with open(_SP500_SEED_PATH) as f:
+                data = json.load(f)
+            tickers = data.get("tickers", data) if isinstance(data, dict) else data
+            if isinstance(tickers, list) and len(tickers) >= 400:
+                return tickers
+        except Exception:
+            pass
+
+    # 3. Scrape live from Wikipedia
     try:
         import io as _io
         req = urlopen(
@@ -261,16 +277,29 @@ NASDAQ100_CACHE_PATH = CACHE_DIR / "nasdaq100_tickers.json"
 
 def fetch_nasdaq100_tickers() -> list[str]:
     """Return current Nasdaq-100 tickers. Cache only real scraped data, never the fallback."""
+    # 1. Check user cache
     if not NASDAQ100_CACHE_PATH.exists():
         _try_download_remote_cache("nasdaq100_tickers.json", NASDAQ100_CACHE_PATH)
 
     if NASDAQ100_CACHE_PATH.exists():
         with open(NASDAQ100_CACHE_PATH) as f:
             tickers = json.load(f)
-        if len(tickers) >= 90:  # sanity check: real Nasdaq-100 has ~100 constituents
+        if len(tickers) >= 90:
             return tickers
         NASDAQ100_CACHE_PATH.unlink(missing_ok=True)
 
+    # 2. Check bundled seed
+    if _NASDAQ100_SEED_PATH.exists():
+        try:
+            with open(_NASDAQ100_SEED_PATH) as f:
+                data = json.load(f)
+            tickers = data.get("tickers", data) if isinstance(data, dict) else data
+            if isinstance(tickers, list) and len(tickers) >= 90:
+                return tickers
+        except Exception:
+            pass
+
+    # 3. Scrape live from Wikipedia
     try:
         import io as _io
         req = urlopen(
@@ -648,6 +677,7 @@ def _download_french_factors() -> pd.DataFrame:
 
 def get_factors(start: str, end: str) -> pd.DataFrame:
     """Return daily Fama-French factor returns (Mkt-RF, SMB, HML, Mom, RF)."""
+    # 1. Check user cache (parquet/csv in ~/.cache/quantcontext)
     for cache_path, csv_path in [(FACTORS_CACHE_PATH, FACTORS_CSV_FALLBACK)]:
         if cache_path.exists():
             try:
@@ -667,6 +697,17 @@ def get_factors(start: str, end: str) -> pd.DataFrame:
             except Exception:
                 pass
 
+    # 2. Check bundled seed (shipped with package, has comment header)
+    if _FACTORS_SEED_PATH.exists():
+        try:
+            df = pd.read_csv(_FACTORS_SEED_PATH, index_col=0, parse_dates=True, comment="#")
+            mask = (df.index >= pd.Timestamp(start)) & (df.index <= pd.Timestamp(end))
+            if mask.any():
+                return df.loc[mask]
+        except Exception:
+            pass
+
+    # 3. Download live from Ken French's site
     df = _download_french_factors()
     try:
         df.to_parquet(FACTORS_CACHE_PATH)
