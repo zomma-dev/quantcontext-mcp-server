@@ -6,6 +6,7 @@ build/
 .venv/
 .env
 .env.local
+.mcpregistry_*
 *.egg
 .pytest_cache/
 .ruff_cache/
@@ -15,6 +16,9 @@ run_server.sh
 
 # macOS
 .DS_Store
+
+# Docs (hosted on Mintlify, source in docs-site/)
+docs/
 
 # Node / Next.js
 node_modules/

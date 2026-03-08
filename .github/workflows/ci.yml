@@ -24,12 +24,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e . pytest
 
       - name: Import test
         run: |
           python -c "from quantcontext.server import mcp; print(f'OK: {mcp.name}')"
 
       - name: Run tests
-        run: |
-          python tests/test_tools.py
+        run: pytest tests/test_tools.py -q

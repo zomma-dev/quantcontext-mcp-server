@@ -147,3 +147,5 @@ quantcontext-warmup --url https://quantcontext.ai/api/data
 ## License
 
 MIT
+
+<!-- mcp-name: io.github.zomma-dev/quantcontext -->
