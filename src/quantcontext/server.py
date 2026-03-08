@@ -72,32 +72,103 @@ VALID_UNIVERSES = {"sp500", "russell2000", "nasdaq100"}
 
 CHARACTER_LIMIT = 25000  # Maximum response size in characters
 
+MAX_WARNINGS = 5  # Keep at most this many individual warnings in the response
+
+
+def _summarize_warnings(warnings: list[str]) -> list[str]:
+    """Collapse bulk warnings into a compact summary."""
+    if len(warnings) <= MAX_WARNINGS:
+        return warnings
+    return warnings[:MAX_WARNINGS] + [
+        f"… and {len(warnings) - MAX_WARNINGS} more warnings omitted."
+    ]
+
 
 def _truncate_response(response_str: str) -> str:
-    """Truncate response if it exceeds CHARACTER_LIMIT."""
+    """Truncate response if it exceeds CHARACTER_LIMIT.
+
+    Truncation order (least valuable data first):
+      1. Collapse warnings to a summary
+      2. Trim ``results`` (screen output) to 5 items
+      3. Trim ``recent_trades`` to 5 items
+      4. Strip ``results`` entirely
+    ``equity_curve`` is never truncated — it is the data contract between
+    ``backtest_strategy`` and ``factor_analysis``.
+    """
     if len(response_str) <= CHARACTER_LIMIT:
         return response_str
     try:
         data = json.loads(response_str)
         data["truncated"] = True
-        data["truncation_message"] = (
-            f"Response truncated from {len(response_str)} characters to fit within "
-            f"{CHARACTER_LIMIT} character limit. Use filters or pagination to reduce results."
+
+        # Capture original counts before any mutation
+        original_results_count = (
+            len(data["results"]) if "results" in data and isinstance(data["results"], list) else 0
         )
-        # Aggressively trim all list fields (top-level and nested in trades)
-        for key in ("results", "equity_curve"):
-            if key in data and isinstance(data[key], list) and len(data[key]) > 5:
-                data[key] = data[key][:5]
+
+        # Step 1: collapse warnings (often the biggest contributor)
+        if "warnings" in data and isinstance(data["warnings"], list):
+            data["warnings"] = _summarize_warnings(data["warnings"])
+        result = json.dumps(data)
+        if len(result) <= CHARACTER_LIMIT:
+            return result
+
+        # Step 2: trim screen results and recent trades
+        if "results" in data and isinstance(data["results"], list) and len(data["results"]) > 5:
+            data["results"] = data["results"][:5]
         if "trades" in data and isinstance(data["trades"], dict):
             if "recent_trades" in data["trades"] and isinstance(data["trades"]["recent_trades"], list):
                 data["trades"]["recent_trades"] = data["trades"]["recent_trades"][:5]
         result = json.dumps(data)
         if len(result) <= CHARACTER_LIMIT:
             return result
-        # Still too large — strip all list fields entirely
-        data = {k: v for k, v in data.items() if not isinstance(v, list)}
-        data["truncated"] = True
-        data["truncation_message"] = "Response too large; list data removed. Use filters to reduce results."
+
+        # Step 3: strip screen results entirely (equity_curve is preserved)
+        if "results" in data and isinstance(data["results"], list):
+            data.pop("results")
+            data["truncation_message"] = (
+                f"Screen results ({original_results_count} rows) removed to fit response within "
+                f"{CHARACTER_LIMIT} character limit. Use stricter filters to reduce results."
+            )
+        result = json.dumps(data)
+        if len(result) <= CHARACTER_LIMIT:
+            return result
+
+        # Step 4: drop warnings entirely, keep equity_curve
+        data.pop("warnings", None)
+        data["truncation_message"] = (
+            "Response too large; warnings and screen results removed. "
+            "Use stricter filters to reduce results."
+        )
+        result = json.dumps(data)
+        if len(result) <= CHARACTER_LIMIT:
+            return result
+
+        # Step 5: equity_curve alone exceeds limit — downsample to fit.
+        # Preserves ≥30 evenly-spaced points (minimum for factor_analysis).
+        if "equity_curve" in data and isinstance(data["equity_curve"], list):
+            ec = data["equity_curve"]
+            original_len = len(ec)
+            # Pre-set metadata so binary search accounts for final payload size
+            data["equity_curve_sampled_from"] = original_len
+            data["truncation_message"] = (
+                f"Equity curve downsampled to fit within {CHARACTER_LIMIT} character limit."
+            )
+            lo, hi = 30, len(ec)
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                step = max(1, original_len // mid)
+                data["equity_curve"] = ec[::step][:mid]
+                if len(json.dumps(data)) <= CHARACTER_LIMIT:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            step = max(1, original_len // lo)
+            data["equity_curve"] = ec[::step][:lo]
+            data["truncation_message"] = (
+                f"Equity curve downsampled from {original_len} to {len(data['equity_curve'])} points "
+                f"to fit within {CHARACTER_LIMIT} character limit."
+            )
         return json.dumps(data)
     except (json.JSONDecodeError, TypeError):
         return json.dumps({"error": "Response too large to serialize", "truncated": True})
@@ -354,13 +425,23 @@ async def backtest_strategy(
 
     try:
         if ctx is not None:
-            await ctx.report_progress(1, 3)
+            await ctx.report_progress(0, 100)
             await ctx.info("Pipeline configured. Running backtest…")
 
-        result = await asyncio.to_thread(run_backtest, pipeline, bt_config)
+        # Bridge synchronous engine progress to async MCP context.
+        # The engine calls progress_callback(current, total, msg) from its thread;
+        # we schedule the async ctx methods back on the event loop.
+        loop = asyncio.get_event_loop()
+
+        def _on_progress(current: int, total: int, msg: str) -> None:
+            if ctx is not None:
+                loop.call_soon_threadsafe(asyncio.ensure_future, ctx.report_progress(current, total))
+                loop.call_soon_threadsafe(asyncio.ensure_future, ctx.info(msg))
+
+        result = await asyncio.to_thread(run_backtest, pipeline, bt_config, progress_callback=_on_progress)
 
         if ctx is not None:
-            await ctx.report_progress(2, 3)
+            await ctx.report_progress(100, 100)
             await ctx.info("Backtest complete. Formatting results…")
 
         equity_curve = result.get("equity_curve", [])
